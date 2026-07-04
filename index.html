@@ -272,16 +272,30 @@ function updateReceiptField(field, value){
 
 let activeReceipt = null; // the receipt currently being viewed/scanned (not yet necessarily saved)
 
+// Strips punctuation/case so "Trader Joe's", "trader joes", and
+// "TRADER-JOES" all read as the same thing for search purposes.
+function normalizeText(s){
+  return (s || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Word-based match: every word typed in the search box must appear
+// somewhere in the receipt (store name or an item), in any order,
+// regardless of punctuation or capitalization.
+function receiptMatchesQuery(receipt, query){
+  const tokens = normalizeText(query).split(' ').filter(Boolean);
+  if(tokens.length === 0) return true;
+  const haystack = normalizeText(receipt.brand) + ' ' +
+    (receipt.items || []).map(it => normalizeText(it.name)).join(' ');
+  return tokens.every(t => haystack.includes(t));
+}
+
 // ---------- library screen ----------
 function renderLibrary(){
   const list = document.getElementById('libraryList');
-  const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  const query = document.getElementById('searchInput').value || '';
   const receipts = loadReceipts();
 
-  const filtered = !query ? receipts : receipts.filter(r => {
-    if((r.brand || '').toLowerCase().includes(query)) return true;
-    return (r.items || []).some(it => (it.name || '').toLowerCase().includes(query));
-  });
+  const filtered = !query.trim() ? receipts : receipts.filter(r => receiptMatchesQuery(r, query));
 
   list.innerHTML = '';
 
