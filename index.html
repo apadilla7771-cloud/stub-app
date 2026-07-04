@@ -193,6 +193,12 @@
     border:none; background:transparent; color:#B7AF95; font-size:14px; cursor:pointer; padding:0 2px; flex-shrink:0;
   }
   .r-item-del:hover{ color:var(--stamp); }
+  .r-item-cat-row{ padding:0 0 6px 0; }
+  .r-item-cat{
+    font-family:'Space Grotesk',sans-serif; font-size:10px; color:#8A8571;
+    background:var(--paper-dim); border:none; border-radius:6px; padding:2px 6px;
+    outline:none;
+  }
   .r-total-input{
     width:60px; text-align:right; border:none; background:transparent; font-family:'IBM Plex Mono', monospace;
     font-size:11.5px; color:var(--ink); outline:none; border-bottom:1px dashed transparent;
@@ -447,6 +453,22 @@ function renderSummary(){
   const merchantEntries = Object.entries(byMerchant).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
   const maxMerchantTotal = Math.max(...merchantEntries.map(([, v]) => v.total), 1);
 
+  // Category totals are computed per-item (not per-receipt), since a
+  // single receipt often mixes categories (e.g. groceries + a t-shirt
+  // in the same Target run).
+  const byCategory = {};
+  receipts.forEach(r => {
+    (r.items || []).forEach(it => {
+      const cat = it.category || 'Other';
+      const amt = parseFloat(it.price) || 0;
+      if(!byCategory[cat]) byCategory[cat] = { total: 0, count: 0 };
+      byCategory[cat].total += amt;
+      byCategory[cat].count += 1;
+    });
+  });
+  const categoryEntries = Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total);
+  const maxCategoryTotal = Math.max(...categoryEntries.map(([, v]) => v.total), 1);
+
   el.innerHTML = `
     <div class="summary-hero">
       <div class="label">This month</div>
@@ -455,6 +477,23 @@ function renderSummary(){
         <span>${thisMonth.count} receipt${thisMonth.count === 1 ? '' : 's'}</span>
         <span>All time: $${allTimeTotal.toFixed(2)}</span>
       </div>
+    </div>
+
+    <div class="summary-section">
+      <div class="summary-section-label">By category</div>
+      ${categoryEntries.map(([name, v]) => {
+        const pct = Math.round((v.total / maxCategoryTotal) * 100);
+        return `
+          <div class="summary-row" style="display:block;">
+            <div style="display:flex; justify-content:space-between;">
+              <span class="name">${name}</span>
+              <span class="amt">$${v.total.toFixed(2)}</span>
+            </div>
+            <div class="meta">${v.count} item${v.count === 1 ? '' : 's'}</div>
+            <div class="summary-bar-track"><div class="summary-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+        `;
+      }).join('')}
     </div>
 
     <div class="summary-section">
@@ -522,6 +561,30 @@ function resetScanScreen(){
 // Heuristic parser — turns raw OCR text into merchant/items/subtotal/tax/total.
 // Receipts vary a lot, so this is best-effort: it looks for price-shaped
 // numbers on each line and uses keywords to sort them into totals vs items.
+// ---------- categories ----------
+const CATEGORIES = ['Groceries', 'Clothing', 'Electronics', 'Health & Beauty', 'Home', 'Restaurants', 'Gas', 'Entertainment', 'Other'];
+
+const CATEGORY_KEYWORDS = {
+  'Groceries': ['milk','bread','banana','apple','egg','cheese','yogurt','produce','meat','chicken','beef','snack','cereal','juice','water','soda','coffee','tea','vegetable','fruit','rice','pasta','sauce','frozen','bakery','onion','tomato','potato','gyoza'],
+  'Clothing': ['shirt','pant','jean','shoe','sock','dress','jacket','coat','hat','glove','sweater','short','legging','underwear'],
+  'Electronics': ['charger','cable','headphone','phone','laptop','monitor','keyboard','mouse','battery','usb','adapter'],
+  'Health & Beauty': ['shampoo','lotion','soap','toothpaste','deodorant','vitamin','medicine','makeup','sunscreen','razor'],
+  'Home': ['towel','sheet','pillow','candle','cleaner','detergent','trash bag','light bulb','furniture','notebook','pen'],
+  'Restaurants': ['burger','pizza','taco','sandwich','salad','fries','latte','espresso','combo','croissant'],
+  'Gas': ['unleaded','fuel','gasoline','diesel','gallon'],
+  'Entertainment': ['movie','ticket','game','book','magazine','toy']
+};
+
+// Best-effort keyword guess — deliberately simple and meant to be
+// corrected by hand when it's wrong, not treated as authoritative.
+function guessCategory(itemName){
+  const name = (itemName || '').toLowerCase();
+  for(const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)){
+    if(keywords.some(k => k && name.includes(k))) return category;
+  }
+  return 'Other';
+}
+
 function parseReceiptText(text){
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const priceRegex = /(\d{1,4}\.\d{2})/;
@@ -556,7 +619,7 @@ function parseReceiptText(text){
 
     let name = line.replace(priceRegex, '').replace(/[.\-\s]{2,}$/, '').replace(/[|_]/g, '').trim();
     if(name.length < 2) name = 'Item';
-    items.push({ name, price, quantity: 1 });
+    items.push({ name, price, quantity: 1, category: guessCategory(name) });
   });
 
   if(!total && items.length){
@@ -625,7 +688,7 @@ async function handleFile(event){
         brand: (parsed.merchant || 'RECEIPT').toUpperCase(),
         addr: parsed.date || '',
         date: parsed.date || '',
-        items: parsed.items.map(it => ({ q: it.quantity || 1, name: it.name, price: it.price })),
+        items: parsed.items.map(it => ({ q: it.quantity || 1, name: it.name, price: it.price, category: it.category || 'Other' })),
         subtotal: parsed.subtotal || '',
         tax: parsed.tax || '',
         total: parsed.total || ''
@@ -665,6 +728,11 @@ function showParsedReceipt(isNew = true){
         <span>$</span>
         <input class="r-item-price" value="${it.price}" oninput="updateItemField(${i}, 'price', this.value)">
         <button class="r-item-del" onclick="removeItem(${i})" title="Remove item">×</button>
+      </div>
+      <div class="r-item-cat-row">
+        <select class="r-item-cat" onchange="updateItemField(${i}, 'category', this.value)">
+          ${CATEGORIES.map(c => `<option value="${c}" ${(it.category || 'Other') === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
       </div>
     `).join('')}
     <button class="add-item-btn" onclick="addItem()">+ Add item</button>
@@ -731,7 +799,7 @@ function removeItem(index){
 
 function addItem(){
   if(!activeReceipt) return;
-  activeReceipt.items.push({ q: 1, name: 'New item', price: '0.00' });
+  activeReceipt.items.push({ q: 1, name: 'New item', price: '0.00', category: 'Other' });
   recalcTotals();
   persistActiveReceipt();
   showParsedReceipt(false);
