@@ -171,6 +171,34 @@
   .r-row{ display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; }
   .r-row .qty{ color:#948E77; margin-right:6px; }
   .r-total{ display:flex; justify-content:space-between; font-size:14px; font-weight:600; margin-top:6px; }
+
+  .r-item-row{ display:flex; align-items:center; gap:4px; padding:3px 0; }
+  .r-item-name{
+    flex:1; min-width:0; border:none; background:transparent; font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; color:var(--ink); outline:none; border-bottom:1px dashed transparent; padding:2px 0;
+  }
+  .r-item-name:focus{ border-bottom:1px dashed var(--stamp); }
+  .r-item-price{
+    width:52px; text-align:right; border:none; background:transparent; font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; color:var(--ink); outline:none; border-bottom:1px dashed transparent; padding:2px 0;
+  }
+  .r-item-price:focus{ border-bottom:1px dashed var(--stamp); }
+  .r-item-del{
+    border:none; background:transparent; color:#B7AF95; font-size:14px; cursor:pointer; padding:0 2px; flex-shrink:0;
+  }
+  .r-item-del:hover{ color:var(--stamp); }
+  .r-total-input{
+    width:60px; text-align:right; border:none; background:transparent; font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; color:var(--ink); outline:none; border-bottom:1px dashed transparent;
+  }
+  .r-total-input:focus{ border-bottom:1px dashed var(--stamp); }
+  .r-total-input.big{ font-size:14px; font-weight:600; }
+  .r-total-input:read-only{ color:#8A8571; cursor:default; }
+  .add-item-btn{
+    width:100%; margin-top:8px; padding:6px; border:1px dashed #B7AF95; border-radius:6px;
+    background:transparent; color:#8A8571; font-size:11px; font-family:'Space Grotesk',sans-serif;
+    cursor:pointer;
+  }
   .r-foot{ text-align:center; font-size:9.5px; color:#A39D86; margin-top:18px; letter-spacing:.5px; }
   .stamp-box{
     display:inline-block; border:2px solid var(--verify); color:var(--verify);
@@ -262,12 +290,11 @@ function deleteReceipt(id){
 function updateReceiptField(field, value){
   if(!activeReceipt || !activeReceipt.id) return;
   activeReceipt[field] = value;
-  const list = loadReceipts();
-  const idx = list.findIndex(r => r.id === activeReceipt.id);
-  if(idx > -1){
-    list[idx][field] = value;
-    saveReceipts(list);
+  if(field === 'tax'){
+    recalcTotals();
+    refreshTotalsDisplay();
   }
+  persistActiveReceipt();
 }
 
 let activeReceipt = null; // the receipt currently being viewed/scanned (not yet necessarily saved)
@@ -490,16 +517,22 @@ function showParsedReceipt(isNew = true){
   const el = document.getElementById('receiptContent');
   el.innerHTML = `
     <input class="r-brand-input" id="brandInput" value="${r.brand}" oninput="updateReceiptField('brand', this.value)" onblur="renderLibrary()">
-    <div style="text-align:center; font-size:9px; color:#A39D86; letter-spacing:.5px; margin-top:2px;">tap name above to edit</div>
+    <div style="text-align:center; font-size:9px; color:#A39D86; letter-spacing:.5px; margin-top:2px;">tap any field to edit</div>
     <div class="r-addr">${r.addr || ''}</div>
     <div class="r-divider"></div>
-    ${r.items.map(it => `
-      <div class="r-row"><span><span class="qty">${it.q}×</span>${it.name}</span><span>$${it.price}</span></div>
+    ${r.items.map((it, i) => `
+      <div class="r-item-row">
+        <input class="r-item-name" value="${it.name}" oninput="updateItemField(${i}, 'name', this.value)">
+        <span>$</span>
+        <input class="r-item-price" value="${it.price}" oninput="updateItemField(${i}, 'price', this.value)">
+        <button class="r-item-del" onclick="removeItem(${i})" title="Remove item">×</button>
+      </div>
     `).join('')}
+    <button class="add-item-btn" onclick="addItem()">+ Add item</button>
     <div class="r-divider"></div>
-    <div class="r-row"><span>Subtotal</span><span>$${r.subtotal}</span></div>
-    <div class="r-row"><span>Tax</span><span>$${r.tax}</span></div>
-    <div class="r-total"><span>Total</span><span>$${r.total}</span></div>
+    <div class="r-row"><span>Subtotal</span><span>$<input class="r-total-input" id="subtotalInput" value="${r.subtotal}" readonly title="Calculated automatically from items above"></span></div>
+    <div class="r-row"><span>Tax</span><span>$<input class="r-total-input" id="taxInput" value="${r.tax}" oninput="updateReceiptField('tax', this.value)"></span></div>
+    <div class="r-total"><span>Total</span><span>$<input class="r-total-input big" id="totalInput" value="${r.total}" readonly title="Calculated automatically"></span></div>
     <div class="stamp-box">✓ SAVED</div>
     <div class="r-foot">SCANNED VIA STUB OCR</div>
   `;
@@ -507,6 +540,62 @@ function showParsedReceipt(isNew = true){
   document.getElementById('deleteBtn').style.display = 'inline-block';
   openSub('receiptScreen');
   renderLibrary();
+}
+
+function persistActiveReceipt(){
+  if(!activeReceipt || !activeReceipt.id) return;
+  const list = loadReceipts();
+  const idx = list.findIndex(r => r.id === activeReceipt.id);
+  if(idx > -1){
+    list[idx] = activeReceipt;
+    saveReceipts(list);
+  }
+  renderLibrary();
+}
+
+// Subtotal = sum of item prices. Total = subtotal + tax.
+// Both are derived, not manually edited, so they can't drift out of sync
+// with the actual items — tax stays editable since it isn't derivable
+// from the items alone.
+function recalcTotals(){
+  if(!activeReceipt) return;
+  const sum = activeReceipt.items.reduce((acc, it) => acc + (parseFloat(it.price) || 0), 0);
+  const tax = parseFloat(activeReceipt.tax) || 0;
+  activeReceipt.subtotal = sum.toFixed(2);
+  activeReceipt.total = (sum + tax).toFixed(2);
+}
+
+function refreshTotalsDisplay(){
+  const subEl = document.getElementById('subtotalInput');
+  const totEl = document.getElementById('totalInput');
+  if(subEl) subEl.value = activeReceipt.subtotal;
+  if(totEl) totEl.value = activeReceipt.total;
+}
+
+function updateItemField(index, field, value){
+  if(!activeReceipt || !activeReceipt.items[index]) return;
+  activeReceipt.items[index][field] = value;
+  if(field === 'price'){
+    recalcTotals();
+    refreshTotalsDisplay(); // update live without a full re-render, so focus/cursor isn't lost mid-type
+  }
+  persistActiveReceipt();
+}
+
+function removeItem(index){
+  if(!activeReceipt) return;
+  activeReceipt.items.splice(index, 1);
+  recalcTotals();
+  persistActiveReceipt();
+  showParsedReceipt(false);
+}
+
+function addItem(){
+  if(!activeReceipt) return;
+  activeReceipt.items.push({ q: 1, name: 'New item', price: '0.00' });
+  recalcTotals();
+  persistActiveReceipt();
+  showParsedReceipt(false);
 }
 
 function deleteCurrentReceipt(){
