@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stub — itemized receipts</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C2333">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stub">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#1C2333;
+    --paper:#EDE9DE;
+    --paper-dim:#E1DCCC;
+    --stamp:#B23A2E;
+    --verify:#3F6B4F;
+    --gold:#A9832B;
+    --line:#CFC8B4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100dvh;
+    display:flex; align-items:stretch; justify-content:center;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  .phone{ width:100%; max-width:480px; height:100dvh; background:var(--paper); position:relative; }
+  .screen{ width:100%; height:100%; background:var(--paper); overflow:hidden; position:relative; display:flex; flex-direction:column; }
+
+  .appbar{
+    background:var(--ink); color:var(--paper);
+    padding:calc(env(safe-area-inset-top, 0px) + 18px) 22px 18px;
+    flex-shrink:0;
+  }
+  .appbar .brand{ font-weight:700; font-size:20px; letter-spacing:.5px; display:flex; align-items:center; gap:8px; }
+  .brand .tick{ color:var(--stamp); }
+  .appbar .sub{ margin-top:8px; font-size:13px; opacity:.65; }
+
+  .search-wrap{ padding:14px 22px 6px; flex-shrink:0; }
+  .search-input{
+    width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--line);
+    background:#fff; font-family:'Space Grotesk',sans-serif; font-size:13.5px; color:var(--ink);
+    outline:none;
+  }
+  .search-input::placeholder{ color:#A39D86; }
+
+  .list-label{
+    font-size:11px; text-transform:uppercase; letter-spacing:1.2px;
+    color:#8A8571; padding:16px 22px 8px; font-weight:600; flex-shrink:0;
+  }
+  .list{ flex:1; overflow-y:auto; padding:0 0 20px; }
+
+  .empty-state{
+    padding:40px 30px; text-align:center; color:#948E77; font-size:13.5px; line-height:1.7;
+  }
+
+  .rcpt-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 22px; border-bottom:1px solid var(--line);
+    cursor:pointer; transition:background .15s;
+  }
+  .rcpt-row:active{ background:var(--paper-dim); }
+  .rcpt-left{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .rcpt-icon{
+    width:38px; height:38px; border-radius:10px; background:var(--ink); color:var(--paper);
+    display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; flex-shrink:0;
+  }
+  .rcpt-name{ font-size:14.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rcpt-meta{ font-size:12px; color:#7C7660; margin-top:2px; }
+  .rcpt-amt{ font-family:'IBM Plex Mono', monospace; font-size:14.5px; font-weight:600; color:var(--ink); flex-shrink:0; margin-left:10px; }
+
+  .fab{
+    position:absolute; bottom:24px; left:22px; right:22px;
+    background:var(--ink); color:var(--paper); border:none;
+    padding:15px; border-radius:14px; font-size:14.5px; font-weight:600;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer;
+    box-shadow:0 8px 24px rgba(0,0,0,.25); z-index:5;
+  }
+
+  .subscreen{
+    position:absolute; inset:0; background:var(--paper);
+    display:flex; flex-direction:column;
+    transform:translateX(100%);
+    transition:transform .32s cubic-bezier(.4,0,.2,1);
+    z-index:10;
+  }
+  .subscreen.active{ transform:translateX(0); }
+  .subbar{
+    background:var(--ink); color:var(--paper);
+    padding:calc(env(safe-area-inset-top, 0px) + 18px) 18px 16px;
+    display:flex; align-items:center; gap:12px; flex-shrink:0;
+  }
+  .back{
+    width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.1); color:var(--paper);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:none;
+  }
+  .subbar .title{ font-weight:600; font-size:15px; flex:1; }
+  .delete-btn{
+    background:none; border:none; color:var(--stamp); font-size:13px; font-weight:600; cursor:pointer;
+    font-family:'Space Grotesk',sans-serif;
+  }
+
+  .scan-body{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; gap:18px; }
+  .scan-frame{
+    width:220px; height:280px; border:2px dashed #B7AF95; border-radius:14px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; background:#F4F1E7;
+  }
+  .scan-frame .receipt-ghost{ width:150px; opacity:.5; font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8A8571; line-height:1.8; }
+  .scanline{
+    position:absolute; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, transparent, var(--stamp), transparent); top:0; opacity:0;
+  }
+  .scanning .scanline{ animation: sweep 1.4s linear infinite; opacity:1; }
+  @keyframes sweep{ 0%{ top:0; } 100%{ top:100%; } }
+  .scan-status{ font-size:13px; color:#7C7660; min-height:18px; }
+  .scan-btn{
+    background:var(--ink); color:var(--paper); border:none;
+    padding:14px 28px; border-radius:12px; font-size:14px; font-weight:600;
+    cursor:pointer; font-family:'Space Grotesk',sans-serif; display:flex; align-items:center; gap:8px;
+  }
+  .scan-btn:disabled{ opacity:.5; }
+  .hint{ font-size:12px; color:#948E77; max-width:230px; }
+  .parse-list{ width:100%; max-width:260px; text-align:left; display:none; }
+  .parse-row{
+    display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    padding:5px 0; color:var(--ink); opacity:0; transform:translateY(6px); animation: rise .35s forwards;
+  }
+  @keyframes rise{ to{ opacity:1; transform:translateY(0); } }
+  .match-seal{
+    display:none; align-items:center; gap:8px; border:2px solid var(--verify); color:var(--verify);
+    padding:8px 14px; border-radius:10px; font-size:12.5px; font-weight:600; transform:rotate(-3deg);
+  }
+
+  .receipt-wrap{
+    flex:1; overflow-y:auto; padding:26px 0 40px; display:flex; justify-content:center;
+    background:linear-gradient(180deg, #DCD6C4, #EDE9DE 8%);
+  }
+  .receipt{
+    width:260px; background:#FBF9F2; padding:26px 22px 30px; font-family:'IBM Plex Mono', monospace; color:var(--ink);
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    clip-path: polygon(
+      0% 1%, 4% 0%, 8% 1.4%, 12% 0%, 16% 1.4%, 20% 0%, 24% 1.4%, 28% 0%, 32% 1.4%, 36% 0%,
+      40% 1.4%, 44% 0%, 48% 1.4%, 52% 0%, 56% 1.4%, 60% 0%, 64% 1.4%, 68% 0%, 72% 1.4%, 76% 0%,
+      80% 1.4%, 84% 0%, 88% 1.4%, 92% 0%, 96% 1.4%, 100% 1%,
+      100% 99%, 96% 100%, 92% 98.6%, 88% 100%, 84% 98.6%, 80% 100%, 76% 98.6%, 72% 100%, 68% 98.6%, 64% 100%,
+      60% 98.6%, 56% 100%, 52% 98.6%, 48% 100%, 44% 98.6%, 40% 100%, 36% 98.6%, 32% 100%, 28% 98.6%, 24% 100%,
+      20% 98.6%, 16% 100%, 12% 98.6%, 8% 100%, 4% 98.6%, 0% 99%
+    );
+  }
+  .r-brand{ text-align:center; font-weight:600; font-size:15px; letter-spacing:1px; }
+  .r-brand-input{
+    width:100%; text-align:center; font-weight:600; font-size:15px; letter-spacing:1px;
+    font-family:'IBM Plex Mono', monospace; color:var(--ink);
+    background:transparent; border:none; border-bottom:1px dashed transparent;
+    padding:2px 0; outline:none;
+  }
+  .r-brand-input:focus{ border-bottom:1px dashed var(--stamp); }
+  .r-addr{ text-align:center; font-size:10px; color:#8A8571; margin-top:4px; }
+  .r-divider{ border-top:1px dashed #B7AF95; margin:16px 0; }
+  .r-row{ display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; }
+  .r-row .qty{ color:#948E77; margin-right:6px; }
+  .r-total{ display:flex; justify-content:space-between; font-size:14px; font-weight:600; margin-top:6px; }
+  .r-foot{ text-align:center; font-size:9.5px; color:#A39D86; margin-top:18px; letter-spacing:.5px; }
+  .stamp-box{
+    display:inline-block; border:2px solid var(--verify); color:var(--verify);
+    padding:5px 10px; font-size:10px; font-weight:700; letter-spacing:1px;
+    transform:rotate(-6deg); margin:14px auto 4px; width:fit-content;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <!-- MAIN: receipt library -->
+    <div class="appbar">
+      <div class="brand"><span class="tick">✓</span> Stub</div>
+      <div class="sub">Snap a receipt, get every item</div>
+    </div>
+    <div class="search-wrap">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
+    </div>
+    <div class="list-label">My receipts</div>
+    <div class="list" id="libraryList"></div>
+    <button class="fab" onclick="handleFreeScan()">📷 Scan a receipt</button>
+
+    <!-- SCAN SUBSCREEN -->
+    <div class="subscreen" id="scanScreen">
+      <div class="subbar">
+        <button class="back" onclick="closeSub('scanScreen')">←</button>
+        <div class="title">Scan a receipt</div>
+      </div>
+      <div class="scan-body" id="scanBody">
+        <div class="scan-frame" id="scanFrame">
+          <div class="scanline"></div>
+          <img id="previewImg" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:12px;">
+          <div class="receipt-ghost" id="ghostText">
+            RECEIPT<br>------------<br>1 ITEM &nbsp;&nbsp;$0.00<br>1 ITEM &nbsp;&nbsp;$0.00<br>------------<br>TOTAL &nbsp;&nbsp;$0.00
+          </div>
+        </div>
+        <div class="scan-status" id="scanStatus">Take a photo of a real receipt</div>
+
+        <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+        <button class="scan-btn" id="scanBtn" onclick="document.getElementById('fileInput').click()">📷 Take or upload photo</button>
+        <div class="hint" id="hintText">Free, on-device OCR — runs right in your browser, no server, no cost.</div>
+
+        <div class="parse-list" id="parseList"></div>
+        <div class="match-seal" id="matchSeal">✓ Receipt parsed</div>
+        <button class="scan-btn" id="viewReceiptBtn" style="display:none" onclick="showParsedReceipt()">View & save receipt</button>
+      </div>
+    </div>
+
+    <!-- RECEIPT DETAIL SUBSCREEN -->
+    <div class="subscreen" id="receiptScreen">
+      <div class="subbar">
+        <button class="back" onclick="closeSub('receiptScreen')">←</button>
+        <div class="title">Receipt</div>
+        <button class="delete-btn" id="deleteBtn" onclick="deleteCurrentReceipt()" style="display:none">Delete</button>
+      </div>
+      <div class="receipt-wrap">
+        <div class="receipt" id="receiptContent"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ---------- storage ----------
+const STORAGE_KEY = 'stub_receipts';
+
+function loadReceipts(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveReceipts(list){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function addReceipt(receipt){
+  const list = loadReceipts();
+  receipt.id = Date.now().toString(36);
+  receipt.savedAt = new Date().toISOString();
+  list.unshift(receipt);
+  saveReceipts(list);
+  return receipt;
+}
+function deleteReceipt(id){
+  saveReceipts(loadReceipts().filter(r => r.id !== id));
+}
+function updateReceiptField(field, value){
+  if(!activeReceipt || !activeReceipt.id) return;
+  activeReceipt[field] = value;
+  const list = loadReceipts();
+  const idx = list.findIndex(r => r.id === activeReceipt.id);
+  if(idx > -1){
+    list[idx][field] = value;
+    saveReceipts(list);
+  }
+}
+
+let activeReceipt = null; // the receipt currently being viewed/scanned (not yet necessarily saved)
+
+// ---------- library screen ----------
+function renderLibrary(){
+  const list = document.getElementById('libraryList');
+  const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  const receipts = loadReceipts();
+
+  const filtered = !query ? receipts : receipts.filter(r => {
+    if((r.brand || '').toLowerCase().includes(query)) return true;
+    return (r.items || []).some(it => (it.name || '').toLowerCase().includes(query));
+  });
+
+  list.innerHTML = '';
+
+  if(receipts.length === 0){
+    list.innerHTML = `<div class="empty-state">No receipts yet.<br>Tap "Scan a receipt" below to add your first one.</div>`;
+    return;
+  }
+  if(filtered.length === 0){
+    list.innerHTML = `<div class="empty-state">No receipts match "${query}".</div>`;
+    return;
+  }
+
+  filtered.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'rcpt-row';
+    row.onclick = () => { activeReceipt = r; showParsedReceipt(false); };
+    const initials = (r.brand || '?').trim().slice(0, 2).toUpperCase();
+    row.innerHTML = `
+      <div class="rcpt-left">
+        <div class="rcpt-icon">${initials}</div>
+        <div>
+          <div class="rcpt-name">${r.brand || 'Receipt'}</div>
+          <div class="rcpt-meta">${r.date || ''}</div>
+        </div>
+      </div>
+      <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
+    `;
+    list.appendChild(row);
+  });
+}
+renderLibrary();
+
+// ---------- scan flow ----------
+function handleFreeScan(){
+  activeReceipt = null;
+  resetScanScreen();
+  openSub('scanScreen');
+}
+
+function openSub(id){ document.getElementById(id).classList.add('active'); }
+function closeSub(id){ document.getElementById(id).classList.remove('active'); }
+
+function resetScanScreen(){
+  document.getElementById('scanFrame').classList.remove('scanning');
+  document.getElementById('scanStatus').textContent = 'Take a photo of a real receipt';
+  document.getElementById('scanBtn').style.display = 'flex';
+  document.getElementById('scanBtn').disabled = false;
+  document.getElementById('scanBtn').textContent = '📷 Take or upload photo';
+  document.getElementById('parseList').style.display = 'none';
+  document.getElementById('parseList').innerHTML = '';
+  document.getElementById('matchSeal').style.display = 'none';
+  document.getElementById('viewReceiptBtn').style.display = 'none';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('ghostText').style.display = 'block';
+  document.getElementById('fileInput').value = '';
+}
+
+// Heuristic parser — turns raw OCR text into merchant/items/subtotal/tax/total.
+// Receipts vary a lot, so this is best-effort: it looks for price-shaped
+// numbers on each line and uses keywords to sort them into totals vs items.
+function parseReceiptText(text){
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const priceRegex = /(\d{1,4}\.\d{2})/;
+  const totalWords = /total\b/i;
+  const subtotalWords = /sub\s*-?\s*total/i;
+  const taxWords = /tax/i;
+  const noiseWords = /change|cash|debit|credit|visa|mastercard|amex|approved|auth\b|tender|balance|card\s*#|thank you|receipt|saving|coupon|discount|free\s*bag|contact|survey|feedback|rewards?\b|loyalty/i;
+
+  const dateMatch = text.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+  const merchant = (lines.find(l => l.length > 2 && !priceRegex.test(l) && /[a-zA-Z]{3,}/.test(l) && !noiseWords.test(l) && !l.includes('@')) || lines[0] || 'Receipt')
+    .replace(/[^\w\s&'.-]/g, '').trim() || 'Receipt';
+
+  let subtotal = '', tax = '', total = '';
+  const items = [];
+  let pastTotals = false; // once true, stop treating lines as purchasable items —
+                           // everything after the real total is footer noise
+                           // (coupons, contact info, survey links, loyalty blurbs)
+
+  lines.forEach(line => {
+    if(line.includes('@')) return; // email addresses are never items or prices
+
+    const m = line.match(priceRegex);
+    if(!m) return;
+    const price = m[1];
+
+    if(subtotalWords.test(line)){ subtotal = price; return; }
+    if(totalWords.test(line) && !noiseWords.test(line)){ total = price; pastTotals = true; return; }
+    if(taxWords.test(line)){ tax = price; return; }
+    if(noiseWords.test(line)) return;
+    if(pastTotals) return;
+    if(parseFloat(price) === 0) return;
+
+    let name = line.replace(priceRegex, '').replace(/[.\-\s]{2,}$/, '').replace(/[|_]/g, '').trim();
+    if(name.length < 2) name = 'Item';
+    items.push({ name, price, quantity: 1 });
+  });
+
+  if(!total && items.length){
+    const prices = items.map(it => parseFloat(it.price));
+    total = Math.max(...prices).toFixed(2);
+  }
+
+  return { merchant, date: dateMatch ? dateMatch[1] : '', items, subtotal, tax, total };
+}
+
+async function handleFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const frame = document.getElementById('scanFrame');
+  const status = document.getElementById('scanStatus');
+  const btn = document.getElementById('scanBtn');
+  const previewImg = document.getElementById('previewImg');
+  const ghost = document.getElementById('ghostText');
+
+  const objectUrl = URL.createObjectURL(file);
+  previewImg.src = objectUrl;
+  previewImg.style.display = 'block';
+  ghost.style.display = 'none';
+
+  frame.classList.add('scanning');
+  btn.style.display = 'none';
+  status.textContent = 'Reading receipt…';
+
+  try{
+    const result = await Tesseract.recognize(file, 'eng', {
+      logger: (m) => {
+        if(m.status === 'recognizing text'){
+          status.textContent = `Reading receipt… ${Math.round((m.progress || 0) * 100)}%`;
+        }
+      }
+    });
+
+    const parsed = parseReceiptText(result.data.text);
+
+    frame.classList.remove('scanning');
+    status.textContent = 'Extracting line items…';
+
+    const parseList = document.getElementById('parseList');
+    parseList.style.display = 'block';
+
+    if(parsed.items.length === 0){
+      parseList.innerHTML = `<div class="parse-row" style="opacity:1;">Couldn't find clear line items — try a flatter, brighter photo.</div>`;
+    } else {
+      parsed.items.forEach((it, i) => {
+        const row = document.createElement('div');
+        row.className = 'parse-row';
+        row.style.animationDelay = (i*0.12)+'s';
+        row.innerHTML = `<span>${it.name}</span><span>$${it.price}</span>`;
+        parseList.appendChild(row);
+      });
+    }
+
+    setTimeout(() => {
+      const seal = document.getElementById('matchSeal');
+      seal.textContent = '✓ Receipt parsed';
+      seal.style.display = 'flex';
+      document.getElementById('viewReceiptBtn').style.display = 'flex';
+
+      activeReceipt = {
+        brand: (parsed.merchant || 'RECEIPT').toUpperCase(),
+        addr: parsed.date || '',
+        date: parsed.date || '',
+        items: parsed.items.map(it => ({ q: it.quantity || 1, name: it.name, price: it.price })),
+        subtotal: parsed.subtotal || '',
+        tax: parsed.tax || '',
+        total: parsed.total || ''
+      };
+      status.textContent = 'Done';
+    }, parsed.items.length*120 + 300);
+
+  } catch(err){
+    frame.classList.remove('scanning');
+    status.textContent = "Couldn't read that receipt — try a clearer photo.";
+    btn.style.display = 'flex';
+    btn.textContent = '📷 Try again';
+    console.error(err);
+  }
+}
+
+// ---------- receipt detail screen ----------
+// isNew = true when coming from a fresh scan (not yet saved) → shows "save" behavior implicitly
+// isNew = false when opened from the library (already saved) → shows Delete instead
+function showParsedReceipt(isNew = true){
+  const r = activeReceipt;
+  if(!r) return;
+
+  if(isNew && !r.id){
+    activeReceipt = addReceipt(r);
+  }
+
+  const el = document.getElementById('receiptContent');
+  el.innerHTML = `
+    <input class="r-brand-input" id="brandInput" value="${r.brand}" oninput="updateReceiptField('brand', this.value)" onblur="renderLibrary()">
+    <div style="text-align:center; font-size:9px; color:#A39D86; letter-spacing:.5px; margin-top:2px;">tap name above to edit</div>
+    <div class="r-addr">${r.addr || ''}</div>
+    <div class="r-divider"></div>
+    ${r.items.map(it => `
+      <div class="r-row"><span><span class="qty">${it.q}×</span>${it.name}</span><span>$${it.price}</span></div>
+    `).join('')}
+    <div class="r-divider"></div>
+    <div class="r-row"><span>Subtotal</span><span>$${r.subtotal}</span></div>
+    <div class="r-row"><span>Tax</span><span>$${r.tax}</span></div>
+    <div class="r-total"><span>Total</span><span>$${r.total}</span></div>
+    <div class="stamp-box">✓ SAVED</div>
+    <div class="r-foot">SCANNED VIA STUB OCR</div>
+  `;
+
+  document.getElementById('deleteBtn').style.display = 'inline-block';
+  openSub('receiptScreen');
+  renderLibrary();
+}
+
+function deleteCurrentReceipt(){
+  if(!activeReceipt || !activeReceipt.id) return;
+  deleteReceipt(activeReceipt.id);
+  closeSub('receiptScreen');
+  closeSub('scanScreen');
+  renderLibrary();
+}
+
+// No service worker in this version — kept things simpler while we
+// get the core app solid. "Add to Home Screen" works fine without one.
+
+</script>
+</body>
+</html>
