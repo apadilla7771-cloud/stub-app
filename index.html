@@ -60,6 +60,11 @@
     outline:none;
   }
   .search-input::placeholder{ color:#A39D86; }
+  .filter-wrap{ display:flex; gap:8px; margin-top:8px; }
+  .filter-select{
+    flex:1; padding:7px 8px; border-radius:8px; border:1px solid var(--line);
+    background:#fff; font-family:'Space Grotesk',sans-serif; font-size:11.5px; color:var(--ink);
+  }
 
   .list-label{
     font-size:11px; text-transform:uppercase; letter-spacing:1.2px;
@@ -202,6 +207,17 @@
     font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink);
     background:var(--paper-dim); border:none; border-radius:6px; padding:3px 6px;
   }
+  .notes-input{
+    width:100%; margin-top:10px; text-align:center; font-size:11.5px; color:var(--ink);
+    background:transparent; border:none; border-bottom:1px dashed transparent;
+    font-family:'Space Grotesk',sans-serif; padding:4px 0; outline:none;
+  }
+  .notes-input:focus{ border-bottom:1px dashed var(--stamp); }
+  .notes-input::placeholder{ color:#B7AF95; font-style:italic; }
+  .rcpt-note-tag{
+    display:inline-block; margin-top:4px; font-size:10px; color:#8A8571;
+    background:var(--paper-dim); padding:2px 7px; border-radius:20px;
+  }
   .r-divider{ border-top:1px dashed #B7AF95; margin:16px 0; }
   .r-row{ display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; }
   .r-row .qty{ color:#948E77; margin-right:6px; }
@@ -286,9 +302,10 @@
   .walkthrough-item-title{ font-size:14px; font-weight:600; color:var(--ink); margin-bottom:3px; }
   .walkthrough-item-text{ font-size:12.5px; color:#7C7660; line-height:1.5; }
   .backup-bar{
-    display:flex; gap:10px; padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
+    display:flex; flex-direction:column; gap:8px; padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
     border-top:1px solid var(--line); flex-shrink:0; background:var(--paper);
   }
+  .backup-bar-row{ display:flex; gap:8px; }
   .backup-btn{
     flex:1; background:var(--ink); color:var(--paper); border:none;
     padding:11px; border-radius:12px; font-size:12px; font-weight:600;
@@ -298,6 +315,8 @@
     padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
     border-top:1px solid var(--line); flex-shrink:0; background:var(--paper);
   }
+  .done-bar-row{ display:flex; gap:10px; }
+  .done-bar-row .scan-btn{ flex:1; }
 </style>
 </head>
 <body>
@@ -318,6 +337,26 @@
     </div>
     <div class="search-wrap">
       <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
+      <div class="filter-wrap">
+        <select id="sortSelect" class="filter-select" onchange="renderLibrary()">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="amount_high">Highest amount</option>
+          <option value="amount_low">Lowest amount</option>
+        </select>
+        <select id="categoryFilterSelect" class="filter-select" onchange="renderLibrary()">
+          <option value="">All categories</option>
+          <option value="Groceries">Groceries</option>
+          <option value="Clothing">Clothing</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Health & Beauty">Health & Beauty</option>
+          <option value="Home">Home</option>
+          <option value="Restaurants">Restaurants</option>
+          <option value="Gas">Gas</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
     </div>
     <div class="list-label">My receipts</div>
     <div class="list" id="libraryList"></div>
@@ -366,7 +405,10 @@
         <div class="receipt" id="receiptContent"></div>
       </div>
       <div class="done-bar">
-        <button class="scan-btn" style="width:100%;" onclick="goToMainScreen()">✅ Done</button>
+        <div class="done-bar-row">
+          <button class="scan-btn secondary" onclick="shareReceipt()">🔗 Share</button>
+          <button class="scan-btn" onclick="goToMainScreen()">✅ Done</button>
+        </div>
       </div>
     </div>
 
@@ -417,7 +459,10 @@
       </div>
       <div class="summary-wrap" id="summaryContent"></div>
       <div class="backup-bar">
-        <button class="backup-btn" onclick="exportReceipts()">⬇️ Export backup</button>
+        <div class="backup-bar-row">
+          <button class="backup-btn" onclick="exportReceipts()">⬇️ Backup (.json)</button>
+          <button class="backup-btn" onclick="exportReceiptsCSV()">📄 Spreadsheet (.csv)</button>
+        </div>
         <button class="backup-btn" onclick="document.getElementById('importInput').click()">⬆️ Import backup</button>
         <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importReceiptsFile(event)">
       </div>
@@ -455,18 +500,57 @@ function deleteReceipt(id){
 }
 
 // ---------- backup: export/import ----------
-function exportReceipts(){
-  const receipts = loadReceipts();
-  const data = JSON.stringify(receipts, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
+function downloadFile(content, filename, mime){
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `stub-receipts-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function exportReceipts(){
+  const receipts = loadReceipts();
+  const data = JSON.stringify(receipts, null, 2);
+  downloadFile(data, `stub-receipts-backup-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+}
+
+function csvEscape(val){
+  const s = String(val ?? '');
+  if(/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+// One row per item (not per receipt), since that's the actual itemized
+// data — a spreadsheet tool can pivot/subtotal by store, category, date,
+// etc. from there far more easily than from one row per receipt.
+function exportReceiptsCSV(){
+  const receipts = loadReceipts();
+  const rows = [['Date Scanned', 'Store', 'Item', 'Category', 'Item Price', 'Receipt Subtotal', 'Receipt Tax', 'Receipt Total', 'Notes', 'Return By']];
+
+  receipts.forEach(r => {
+    const items = (r.items && r.items.length) ? r.items : [{ name: '', price: '', category: '' }];
+    items.forEach(it => {
+      rows.push([
+        (r.savedAt || '').slice(0, 10),
+        r.brand || '',
+        it.name || '',
+        it.category || 'Other',
+        it.price || '',
+        r.subtotal || '',
+        r.tax || '',
+        r.total || '',
+        r.notes || '',
+        r.returnBy || ''
+      ]);
+    });
+  });
+
+  const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+  downloadFile(csv, `stub-receipts-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv');
 }
 
 // Merges an imported backup into what's already saved — matched by id,
@@ -540,9 +624,24 @@ function receiptMatchesQuery(receipt, query){
 function renderLibrary(){
   const list = document.getElementById('libraryList');
   const query = document.getElementById('searchInput').value || '';
+  const sortSelect = document.getElementById('sortSelect');
+  const categorySelect = document.getElementById('categoryFilterSelect');
+  const sortValue = sortSelect ? sortSelect.value : 'newest';
+  const categoryValue = categorySelect ? categorySelect.value : '';
   const receipts = loadReceipts();
 
-  const filtered = !query.trim() ? receipts : receipts.filter(r => receiptMatchesQuery(r, query));
+  let filtered = !query.trim() ? receipts.slice() : receipts.filter(r => receiptMatchesQuery(r, query));
+
+  if(categoryValue){
+    filtered = filtered.filter(r => (r.items || []).some(it => (it.category || 'Other') === categoryValue));
+  }
+
+  filtered.sort((a, b) => {
+    if(sortValue === 'oldest') return new Date(a.savedAt || 0) - new Date(b.savedAt || 0);
+    if(sortValue === 'amount_high') return (parseFloat(b.total) || 0) - (parseFloat(a.total) || 0);
+    if(sortValue === 'amount_low') return (parseFloat(a.total) || 0) - (parseFloat(b.total) || 0);
+    return new Date(b.savedAt || 0) - new Date(a.savedAt || 0); // newest first, default
+  });
 
   list.innerHTML = '';
 
@@ -551,7 +650,7 @@ function renderLibrary(){
     return;
   }
   if(filtered.length === 0){
-    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div>No receipts match "${query}".</div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div>Nothing matches${query.trim() ? ` "${query}"` : ''}${categoryValue ? ` in ${categoryValue}` : ''}.</div>`;
     return;
   }
 
@@ -587,6 +686,7 @@ function getReturnBadgeHTML(r){
           <div class="rcpt-name">${r.brand || 'Receipt'}</div>
           <div class="rcpt-meta">${r.date || ''}</div>
           ${getReturnBadgeHTML(r)}
+          ${r.notes ? `<div class="rcpt-note-tag">${r.notes}</div>` : ''}
         </div>
       </div>
       <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
@@ -1109,6 +1209,7 @@ function showParsedReceipt(isNew = true){
       <label class="return-label">Return by</label>
       <input type="date" class="return-input" value="${r.returnBy || ''}" onchange="updateReceiptField('returnBy', this.value)">
     </div>
+    <input type="text" class="notes-input" placeholder="Add a note (e.g. business expense, gift)" value="${r.notes || ''}" oninput="updateReceiptField('notes', this.value)">
     <div class="r-divider"></div>
     ${r.items.map((it, i) => `
       <div class="r-item-row">
@@ -1195,6 +1296,43 @@ function addItem(){
   recalcTotals();
   persistActiveReceipt();
   showParsedReceipt(false);
+}
+
+// Uses the native share sheet (Messages, Mail, etc.) where the browser
+// supports it; falls back to copying to the clipboard on browsers/devices
+// that don't (e.g. most desktop browsers).
+async function shareReceipt(){
+  if(!activeReceipt) return;
+  const r = activeReceipt;
+
+  const lines = [
+    `${r.brand || 'Receipt'}${r.date ? ' — ' + r.date : ''}`,
+    '',
+    ...r.items.map(it => `${it.name}: $${it.price}`),
+    '',
+    `Subtotal: $${r.subtotal}`,
+    `Tax: $${r.tax}`,
+    `Total: $${r.total}`
+  ];
+  if(r.notes) lines.push('', `Note: ${r.notes}`);
+  const text = lines.join('\n');
+
+  if(navigator.share){
+    try{
+      await navigator.share({ title: r.brand || 'Receipt', text });
+    } catch(err){
+      // user closed the share sheet without picking anything — not an error
+    }
+  } else if(navigator.clipboard){
+    try{
+      await navigator.clipboard.writeText(text);
+      alert('Receipt copied to clipboard — paste it anywhere to share.');
+    } catch(err){
+      alert("Couldn't share or copy this receipt.");
+    }
+  } else {
+    alert("Sharing isn't supported in this browser.");
+  }
 }
 
 function deleteCurrentReceipt(){
