@@ -260,6 +260,10 @@
     padding:11px; border-radius:10px; font-size:12px; font-weight:600;
     font-family:'Space Grotesk',sans-serif; cursor:pointer;
   }
+  .done-bar{
+    padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
+    border-top:1px solid var(--line); flex-shrink:0; background:var(--paper);
+  }
 </style>
 </head>
 <body>
@@ -317,12 +321,15 @@
     <!-- RECEIPT DETAIL SUBSCREEN -->
     <div class="subscreen" id="receiptScreen">
       <div class="subbar">
-        <button class="back" onclick="closeSub('receiptScreen')">←</button>
+        <button class="back" onclick="goToMainScreen()">←</button>
         <div class="title">Receipt</div>
         <button class="delete-btn" id="deleteBtn" onclick="deleteCurrentReceipt()" style="display:none">Delete</button>
       </div>
       <div class="receipt-wrap">
         <div class="receipt" id="receiptContent"></div>
+      </div>
+      <div class="done-bar">
+        <button class="scan-btn" style="width:100%;" onclick="goToMainScreen()">✅ Done</button>
       </div>
     </div>
 
@@ -641,6 +648,18 @@ function handleManualEntry(){
 
 function openSub(id){ document.getElementById(id).classList.add('active'); }
 function closeSub(id){ document.getElementById(id).classList.remove('active'); }
+
+// Closes every subscreen, not just the top one — needed because the
+// receipt screen opens on top of the scan screen without closing it,
+// so a plain closeSub('receiptScreen') used to reveal the scan screen
+// underneath instead of the actual main page.
+function goToMainScreen(){
+  closeSub('receiptScreen');
+  closeSub('scanScreen');
+  closeSub('summaryScreen');
+  activeReceipt = null;
+  renderLibrary();
+}
 
 function resetScanScreen(){
   document.getElementById('scanFrame').classList.remove('scanning');
