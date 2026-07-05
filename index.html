@@ -258,6 +258,16 @@
   .summary-bar-track{ background:var(--paper-dim); border-radius:4px; height:6px; margin-top:6px; overflow:hidden; }
   .summary-bar-fill{ background:var(--stamp); height:100%; border-radius:4px; }
   .chart-wrap{ height:180px; margin-bottom:14px; position:relative; }
+  .walkthrough-body{
+    flex:1; overflow-y:auto; padding:calc(env(safe-area-inset-top,0px) + 40px) 26px 30px;
+    display:flex; flex-direction:column;
+  }
+  .walkthrough-title{ font-size:22px; font-weight:700; color:var(--ink); text-align:center; }
+  .walkthrough-sub{ font-size:13px; color:#7C7660; text-align:center; margin-top:8px; margin-bottom:26px; line-height:1.5; }
+  .walkthrough-item{ display:flex; gap:14px; margin-bottom:20px; align-items:flex-start; }
+  .walkthrough-icon{ font-size:22px; flex-shrink:0; width:32px; text-align:center; }
+  .walkthrough-item-title{ font-size:14px; font-weight:600; color:var(--ink); margin-bottom:3px; }
+  .walkthrough-item-text{ font-size:12.5px; color:#7C7660; line-height:1.5; }
   .backup-bar{
     display:flex; gap:10px; padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
     border-top:1px solid var(--line); flex-shrink:0; background:var(--paper);
@@ -282,7 +292,10 @@
     <div class="appbar">
       <div class="appbar-top">
         <div class="brand"><span class="tick">✓</span> Stub</div>
-        <button class="summary-btn" onclick="openSummary()">📊 Summary</button>
+        <div style="display:flex; gap:8px;">
+          <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
+          <button class="summary-btn" onclick="openSummary()">📊 Summary</button>
+        </div>
       </div>
       <div class="sub">Snap a receipt, get every item</div>
     </div>
@@ -337,6 +350,45 @@
       </div>
       <div class="done-bar">
         <button class="scan-btn" style="width:100%;" onclick="goToMainScreen()">✅ Done</button>
+      </div>
+    </div>
+
+    <!-- FIRST-TIME WALKTHROUGH -->
+    <div class="subscreen" id="walkthroughScreen">
+      <div class="walkthrough-body">
+        <div class="walkthrough-title">✓ Welcome to Stub</div>
+        <div class="walkthrough-sub">Your bank statement shows the total. Stub shows what you actually bought.</div>
+
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">📷</div>
+          <div>
+            <div class="walkthrough-item-title">Scan or upload a receipt</div>
+            <div class="walkthrough-item-text">Take a photo, or pick one from your library — it reads the items, prices, and tax automatically, right on your phone.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">✏️</div>
+          <div>
+            <div class="walkthrough-item-title">Fix anything it gets wrong</div>
+            <div class="walkthrough-item-text">Store name, item names, prices, categories — everything's editable. No photo? Add one manually instead.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">📊</div>
+          <div>
+            <div class="walkthrough-item-title">See where your money goes</div>
+            <div class="walkthrough-item-text">The Summary tab breaks down spending by category and by month, automatically, as you add receipts.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">⬇️</div>
+          <div>
+            <div class="walkthrough-item-title">Back up your data</div>
+            <div class="walkthrough-item-text">Everything's stored only on this device. Export a backup from the Summary tab so you never lose it.</div>
+          </div>
+        </div>
+
+        <button class="scan-btn" style="width:100%; margin-top:10px;" onclick="dismissWalkthrough()">Got it, let's go</button>
       </div>
     </div>
 
@@ -505,6 +557,16 @@ function renderLibrary(){
   });
 }
 renderLibrary();
+
+// ---------- first-time walkthrough ----------
+const WALKTHROUGH_SEEN_KEY = 'stub_seen_walkthrough';
+if(!localStorage.getItem(WALKTHROUGH_SEEN_KEY)){
+  openSub('walkthroughScreen');
+}
+function dismissWalkthrough(){
+  localStorage.setItem(WALKTHROUGH_SEEN_KEY, '1');
+  closeSub('walkthroughScreen');
+}
 
 // ---------- spending summary ----------
 function openSummary(){
