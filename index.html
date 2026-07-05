@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Stub">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -251,6 +252,7 @@
   .summary-row .amt{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink); }
   .summary-bar-track{ background:var(--paper-dim); border-radius:4px; height:6px; margin-top:6px; overflow:hidden; }
   .summary-bar-fill{ background:var(--stamp); height:100%; border-radius:4px; }
+  .chart-wrap{ height:180px; margin-bottom:14px; position:relative; }
   .backup-bar{
     display:flex; gap:10px; padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
     border-top:1px solid var(--line); flex-shrink:0; background:var(--paper);
@@ -573,6 +575,7 @@ function renderSummary(){
 
     <div class="summary-section">
       <div class="summary-section-label">By category</div>
+      <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
       ${categoryEntries.map(([name, v]) => {
         const pct = Math.round((v.total / maxCategoryTotal) * 100);
         return `
@@ -590,6 +593,7 @@ function renderSummary(){
 
     <div class="summary-section">
       <div class="summary-section-label">By month</div>
+      <div class="chart-wrap"><canvas id="monthChart"></canvas></div>
       ${monthEntries.map(([key, v]) => {
         const [y, m] = key.split('-');
         const pct = Math.round((v.total / maxMonthTotal) * 100);
@@ -623,6 +627,70 @@ function renderSummary(){
       }).join('')}
     </div>
   `;
+
+  renderCharts(categoryEntries, monthEntries, monthNames);
+}
+
+// Chart instances are tracked here so we can destroy the old ones before
+// drawing new ones — Chart.js throws if you reuse a <canvas> without
+// destroying whatever was drawn on it last time. This runs every time
+// renderSummary() runs, which is every time the Summary screen opens —
+// so the charts always reflect the latest scanned/uploaded/manually
+// entered receipts, with no separate "refresh" step needed.
+let categoryChartInstance = null;
+let monthChartInstance = null;
+
+function renderCharts(categoryEntries, monthEntries, monthNames){
+  if(typeof Chart === 'undefined') return; // CDN blocked/offline — summary list still works without the charts
+
+  if(categoryChartInstance) categoryChartInstance.destroy();
+  if(monthChartInstance) monthChartInstance.destroy();
+
+  const catCtx = document.getElementById('categoryChart');
+  if(catCtx && categoryEntries.length){
+    categoryChartInstance = new Chart(catCtx, {
+      type: 'doughnut',
+      data: {
+        labels: categoryEntries.map(([name]) => name),
+        datasets: [{
+          data: categoryEntries.map(([, v]) => v.total),
+          backgroundColor: categoryEntries.map(([name]) => CATEGORY_COLORS[name] || '#948E77'),
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, color: '#1C2333' } } }
+      }
+    });
+  }
+
+  const monthCtx = document.getElementById('monthChart');
+  if(monthCtx && monthEntries.length){
+    const chronological = [...monthEntries].reverse(); // oldest → newest reads left to right
+    monthChartInstance = new Chart(monthCtx, {
+      type: 'bar',
+      data: {
+        labels: chronological.map(([key]) => {
+          const [y, m] = key.split('-');
+          return `${monthNames[parseInt(m,10)-1].slice(0,3)} '${y.slice(2)}`;
+        }),
+        datasets: [{
+          data: chronological.map(([, v]) => v.total),
+          backgroundColor: '#B23A2E',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { font: { size: 10 }, color: '#8A8571' } },
+          x: { ticks: { font: { size: 10 }, color: '#8A8571' } }
+        }
+      }
+    });
+  }
 }
 
 // ---------- scan flow ----------
@@ -689,6 +757,18 @@ function handleRescan(){
 // numbers on each line and uses keywords to sort them into totals vs items.
 // ---------- categories ----------
 const CATEGORIES = ['Groceries', 'Clothing', 'Electronics', 'Health & Beauty', 'Home', 'Restaurants', 'Gas', 'Entertainment', 'Other'];
+
+const CATEGORY_COLORS = {
+  'Groceries': '#3F6B4F',
+  'Clothing': '#A9832B',
+  'Electronics': '#3B5B79',
+  'Health & Beauty': '#B25C7A',
+  'Home': '#8B6B4A',
+  'Restaurants': '#B23A2E',
+  'Gas': '#6B6B6B',
+  'Entertainment': '#6B4A8B',
+  'Other': '#948E77'
+};
 
 const CATEGORY_KEYWORDS = {
   'Groceries': ['milk','bread','banana','apple','egg','cheese','yogurt','produce','meat','chicken','beef','snack','cereal','juice','water','soda','coffee','tea','vegetable','fruit','rice','pasta','sauce','frozen','bakery','onion','tomato','potato','gyoza'],
