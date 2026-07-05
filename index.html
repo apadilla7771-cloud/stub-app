@@ -70,6 +70,7 @@
   .empty-state{
     padding:40px 30px; text-align:center; color:#948E77; font-size:13.5px; line-height:1.7;
   }
+  .empty-state-icon{ font-size:32px; margin-bottom:10px; opacity:.6; }
 
   .rcpt-row{
     display:flex; align-items:center; justify-content:space-between;
@@ -92,7 +93,7 @@
   }
   .fab{
     background:var(--ink); color:var(--paper); border:none;
-    padding:15px; border-radius:14px; font-size:14.5px; font-weight:600;
+    padding:15px; border-radius:12px; font-size:14.5px; font-weight:600;
     display:flex; align-items:center; justify-content:center; gap:8px;
     font-family:'Space Grotesk',sans-serif; cursor:pointer;
     box-shadow:0 8px 24px rgba(0,0,0,.25);
@@ -274,7 +275,7 @@
   }
   .backup-btn{
     flex:1; background:var(--ink); color:var(--paper); border:none;
-    padding:11px; border-radius:10px; font-size:12px; font-weight:600;
+    padding:11px; border-radius:12px; font-size:12px; font-weight:600;
     font-family:'Space Grotesk',sans-serif; cursor:pointer;
   }
   .done-bar{
@@ -530,11 +531,11 @@ function renderLibrary(){
   list.innerHTML = '';
 
   if(receipts.length === 0){
-    list.innerHTML = `<div class="empty-state">No receipts yet.<br>Tap "Scan a receipt" below to add your first one.</div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧾</div>No receipts yet.<br>Tap "Scan a receipt" below to add your first one.</div>`;
     return;
   }
   if(filtered.length === 0){
-    list.innerHTML = `<div class="empty-state">No receipts match "${query}".</div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div>No receipts match "${query}".</div>`;
     return;
   }
 
@@ -583,7 +584,7 @@ function renderSummary(){
   const el = document.getElementById('summaryContent');
 
   if(receipts.length === 0){
-    el.innerHTML = `<div class="empty-state">No receipts yet — your spending summary will show up here once you've scanned a few.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div>No receipts yet — your spending summary will show up here once you've scanned a few.</div>`;
     return;
   }
 
