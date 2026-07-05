@@ -240,6 +240,15 @@
   .summary-row .amt{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink); }
   .summary-bar-track{ background:var(--paper-dim); border-radius:4px; height:6px; margin-top:6px; overflow:hidden; }
   .summary-bar-fill{ background:var(--stamp); height:100%; border-radius:4px; }
+  .backup-bar{
+    display:flex; gap:10px; padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 14px);
+    border-top:1px solid var(--line); flex-shrink:0; background:var(--paper);
+  }
+  .backup-btn{
+    flex:1; background:var(--ink); color:var(--paper); border:none;
+    padding:11px; border-radius:10px; font-size:12px; font-weight:600;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -307,6 +316,11 @@
         <div class="title">Spending Summary</div>
       </div>
       <div class="summary-wrap" id="summaryContent"></div>
+      <div class="backup-bar">
+        <button class="backup-btn" onclick="exportReceipts()">⬇️ Export backup</button>
+        <button class="backup-btn" onclick="document.getElementById('importInput').click()">⬆️ Import backup</button>
+        <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importReceiptsFile(event)">
+      </div>
     </div>
 
   </div>
@@ -333,6 +347,60 @@ function addReceipt(receipt){
 }
 function deleteReceipt(id){
   saveReceipts(loadReceipts().filter(r => r.id !== id));
+}
+
+// ---------- backup: export/import ----------
+function exportReceipts(){
+  const receipts = loadReceipts();
+  const data = JSON.stringify(receipts, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `stub-receipts-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Merges an imported backup into what's already saved — matched by id,
+// so importing the same file twice never creates duplicates.
+function importReceiptsFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const imported = JSON.parse(reader.result);
+      if(!Array.isArray(imported)) throw new Error('Not a valid backup file');
+
+      const existing = loadReceipts();
+      const existingIds = new Set(existing.map(r => r.id));
+      let addedCount = 0;
+
+      imported.forEach(r => {
+        if(r && r.id && !existingIds.has(r.id)){
+          existing.push(r);
+          existingIds.add(r.id);
+          addedCount++;
+        }
+      });
+
+      existing.sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
+      saveReceipts(existing);
+      renderLibrary();
+
+      const skipped = imported.length - addedCount;
+      alert(`Imported ${addedCount} receipt${addedCount === 1 ? '' : 's'}.` + (skipped > 0 ? ` ${skipped} already existed and were skipped.` : ''));
+    } catch(err){
+      alert("Couldn't read that file — make sure it's a Stub backup (.json) file.");
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 function updateReceiptField(field, value){
   if(!activeReceipt || !activeReceipt.id) return;
