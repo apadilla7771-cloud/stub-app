@@ -85,6 +85,13 @@
   }
   .rcpt-name{ font-size:14.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rcpt-meta{ font-size:12px; color:#7C7660; margin-top:2px; }
+  .return-badge{
+    display:inline-block; margin-top:4px; font-size:10px; font-weight:600;
+    padding:2px 7px; border-radius:20px;
+  }
+  .return-badge.low{ background:rgba(63,107,79,.12); color:var(--verify); }
+  .return-badge.medium{ background:rgba(169,131,43,.15); color:var(--gold); }
+  .return-badge.high{ background:rgba(178,58,46,.12); color:var(--stamp); }
   .rcpt-amt{ font-family:'IBM Plex Mono', monospace; font-size:14.5px; font-weight:600; color:var(--ink); flex-shrink:0; margin-left:10px; }
 
   .fab-group{
@@ -186,6 +193,15 @@
   }
   .r-brand-input:focus{ border-bottom:1px dashed var(--stamp); }
   .r-addr{ text-align:center; font-size:10px; color:#8A8571; margin-top:4px; }
+  .return-row{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    margin-top:10px; font-family:'Space Grotesk',sans-serif;
+  }
+  .return-label{ font-size:10.5px; color:#8A8571; }
+  .return-input{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink);
+    background:var(--paper-dim); border:none; border-radius:6px; padding:3px 6px;
+  }
   .r-divider{ border-top:1px dashed #B7AF95; margin:16px 0; }
   .r-row{ display:flex; justify-content:space-between; font-size:11.5px; padding:3px 0; }
   .r-row .qty{ color:#948E77; margin-right:6px; }
@@ -539,6 +555,26 @@ function renderLibrary(){
     return;
   }
 
+// Returns badge HTML for a receipt if it has an active (not-yet-expired)
+// return-by date, colored by urgency. Returns '' if no date is set or
+// the window has already passed, so expired ones just quietly disappear
+// rather than cluttering the list.
+function getReturnBadgeHTML(r){
+  if(!r.returnBy) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const returnDate = new Date(r.returnBy + 'T00:00:00');
+  if(isNaN(returnDate.getTime())) return '';
+  const daysLeft = Math.round((returnDate - today) / 86400000);
+  if(daysLeft < 0) return '';
+
+  let urgency = 'low';
+  if(daysLeft <= 3) urgency = 'high';
+  else if(daysLeft <= 7) urgency = 'medium';
+
+  const label = daysLeft === 0 ? 'Return today' : `Return in ${daysLeft}d`;
+  return `<div class="return-badge ${urgency}">${label}</div>`;
+}
+
   filtered.forEach(r => {
     const row = document.createElement('div');
     row.className = 'rcpt-row';
@@ -550,6 +586,7 @@ function renderLibrary(){
         <div>
           <div class="rcpt-name">${r.brand || 'Receipt'}</div>
           <div class="rcpt-meta">${r.date || ''}</div>
+          ${getReturnBadgeHTML(r)}
         </div>
       </div>
       <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
@@ -636,7 +673,40 @@ function renderSummary(){
   const categoryEntries = Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total);
   const maxCategoryTotal = Math.max(...categoryEntries.map(([, v]) => v.total), 1);
 
+  // Only receipts with an active (not-yet-expired) return-by date, soonest first.
+  const returnable = receipts
+    .map(r => {
+      if(!r.returnBy) return null;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const returnDate = new Date(r.returnBy + 'T00:00:00');
+      if(isNaN(returnDate.getTime())) return null;
+      const daysLeft = Math.round((returnDate - today) / 86400000);
+      if(daysLeft < 0) return null;
+      return { receipt: r, daysLeft };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
   el.innerHTML = `
+    ${returnable.length ? `
+      <div class="summary-section">
+        <div class="summary-section-label">Returnable soon</div>
+        ${returnable.map(({ receipt: r, daysLeft }) => {
+          const urgency = daysLeft <= 3 ? 'high' : daysLeft <= 7 ? 'medium' : 'low';
+          const label = daysLeft === 0 ? 'Today' : `${daysLeft}d left`;
+          return `
+            <div class="summary-row" onclick="activeReceipt = loadReceipts().find(x => x.id === '${r.id}'); showParsedReceipt(false);" style="cursor:pointer;">
+              <div>
+                <div class="name">${r.brand || 'Receipt'}</div>
+                <div class="meta">$${r.total || '0.00'}</div>
+              </div>
+              <div class="return-badge ${urgency}">${label}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+
     <div class="summary-hero">
       <div class="label">This month</div>
       <div class="big-num">$${thisMonth.total.toFixed(2)}</div>
@@ -1035,6 +1105,10 @@ function showParsedReceipt(isNew = true){
     <input class="r-brand-input" id="brandInput" value="${r.brand}" oninput="updateReceiptField('brand', this.value)" onblur="renderLibrary()">
     <div style="text-align:center; font-size:9px; color:#A39D86; letter-spacing:.5px; margin-top:2px;">tap any field to edit</div>
     <div class="r-addr">${r.addr || ''}</div>
+    <div class="return-row">
+      <label class="return-label">Return by</label>
+      <input type="date" class="return-input" value="${r.returnBy || ''}" onchange="updateReceiptField('returnBy', this.value)">
+    </div>
     <div class="r-divider"></div>
     ${r.items.map((it, i) => `
       <div class="r-item-row">
