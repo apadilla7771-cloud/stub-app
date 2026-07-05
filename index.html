@@ -144,6 +144,9 @@
     cursor:pointer; font-family:'Space Grotesk',sans-serif; display:flex; align-items:center; gap:8px;
   }
   .scan-btn:disabled{ opacity:.5; }
+  .post-scan-actions{ display:flex; gap:10px; width:100%; max-width:260px; }
+  .post-scan-actions .scan-btn{ flex:1; padding:12px 14px; font-size:13px; }
+  .scan-btn.secondary{ background:transparent; color:var(--ink); border:1.5px solid var(--line); }
   .hint{ font-size:12px; color:#948E77; max-width:230px; }
   .parse-list{ width:100%; max-width:260px; text-align:left; display:none; }
   .parse-row{
@@ -304,7 +307,10 @@
 
         <div class="parse-list" id="parseList"></div>
         <div class="match-seal" id="matchSeal">✓ Receipt parsed</div>
-        <button class="scan-btn" id="viewReceiptBtn" style="display:none" onclick="showParsedReceipt()">View & save receipt</button>
+        <div class="post-scan-actions" id="postScanActions" style="display:none">
+          <button class="scan-btn secondary" onclick="handleRescan()">🔄 Rescan</button>
+          <button class="scan-btn" onclick="showParsedReceipt()">✅ Done</button>
+        </div>
       </div>
     </div>
 
@@ -645,10 +651,18 @@ function resetScanScreen(){
   document.getElementById('parseList').style.display = 'none';
   document.getElementById('parseList').innerHTML = '';
   document.getElementById('matchSeal').style.display = 'none';
-  document.getElementById('viewReceiptBtn').style.display = 'none';
+  document.getElementById('postScanActions').style.display = 'none';
   document.getElementById('previewImg').style.display = 'none';
   document.getElementById('ghostText').style.display = 'block';
   document.getElementById('fileInput').value = '';
+}
+
+// If the scan came out bad (bad photo, garbled OCR), this discards the
+// current attempt and puts the scan screen back to a clean state so
+// they can just try again without leaving the screen.
+function handleRescan(){
+  activeReceipt = null;
+  resetScanScreen();
 }
 
 // Heuristic parser — turns raw OCR text into merchant/items/subtotal/tax/total.
@@ -775,7 +789,7 @@ async function handleFile(event){
       const seal = document.getElementById('matchSeal');
       seal.textContent = '✓ Receipt parsed';
       seal.style.display = 'flex';
-      document.getElementById('viewReceiptBtn').style.display = 'flex';
+      document.getElementById('postScanActions').style.display = 'flex';
 
       activeReceipt = {
         brand: (parsed.merchant || 'RECEIPT').toUpperCase(),
