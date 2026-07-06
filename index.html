@@ -47,8 +47,8 @@
   .appbar-top{ display:flex; align-items:center; justify-content:space-between; }
   .summary-btn{
     background:rgba(255,255,255,.1); color:var(--paper); border:none;
-    padding:7px 12px; border-radius:20px; font-size:12px; font-weight:600;
-    font-family:'Space Grotesk',sans-serif; cursor:pointer;
+    padding:6px 9px; border-radius:20px; font-size:11px; font-weight:600;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer; white-space:nowrap;
   }
   .brand .tick{ color:var(--stamp); }
   .appbar .sub{ margin-top:8px; font-size:13px; opacity:.65; }
@@ -65,6 +65,12 @@
     flex:1; padding:7px 8px; border-radius:8px; border:1px solid var(--line);
     background:#fff; font-family:'Space Grotesk',sans-serif; font-size:11.5px; color:var(--ink);
   }
+  .business-filter-btn{
+    display:block; width:100%; margin-top:8px; padding:7px; border-radius:8px;
+    border:1px solid var(--line); background:#fff; color:#8A8571; font-size:11.5px;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  }
+  .business-filter-btn.active{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
 
   .list-label{
     font-size:11px; text-transform:uppercase; letter-spacing:1.2px;
@@ -214,6 +220,10 @@
   }
   .notes-input:focus{ border-bottom:1px dashed var(--stamp); }
   .notes-input::placeholder{ color:#B7AF95; font-style:italic; }
+  .business-checkbox{
+    display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px;
+    font-size:11.5px; color:#8A8571; font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  }
   .rcpt-note-tag{
     display:inline-block; margin-top:4px; font-size:10px; color:#8A8571;
     background:var(--paper-dim); padding:2px 7px; border-radius:20px;
@@ -290,6 +300,16 @@
   .summary-row .amt{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink); }
   .summary-bar-track{ background:var(--paper-dim); border-radius:4px; height:6px; margin-top:6px; overflow:hidden; }
   .summary-bar-fill{ background:var(--stamp); height:100%; border-radius:4px; }
+  .summary-bar-fill.budget-low{ background:var(--verify); }
+  .summary-bar-fill.budget-medium{ background:var(--gold); }
+  .summary-bar-fill.budget-high{ background:var(--stamp); }
+  .budget-row{ padding:10px 0; border-bottom:1px solid var(--line); }
+  .budget-row-top{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; }
+  .budget-input-wrap{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); }
+  .budget-input{
+    width:50px; border:none; background:var(--paper-dim); border-radius:6px; padding:3px 5px;
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); text-align:right;
+  }
   .chart-wrap{ height:180px; margin-bottom:14px; position:relative; }
   .walkthrough-body{
     flex:1; overflow-y:auto; padding:calc(env(safe-area-inset-top,0px) + 40px) 26px 30px;
@@ -328,8 +348,9 @@
     <div class="appbar">
       <div class="appbar-top">
         <div class="brand"><span class="tick">✓</span> Stub</div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:6px;">
           <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
+          <button class="summary-btn" onclick="openBudgets()">🎯 Budgets</button>
           <button class="summary-btn" onclick="openSummary()">📊 Summary</button>
         </div>
       </div>
@@ -357,6 +378,7 @@
           <option value="Other">Other</option>
         </select>
       </div>
+      <button class="business-filter-btn" id="businessFilterBtn" onclick="toggleBusinessFilter()">💼 Business expenses only</button>
     </div>
     <div class="list-label">My receipts</div>
     <div class="list" id="libraryList"></div>
@@ -451,6 +473,15 @@
       </div>
     </div>
 
+    <!-- CATEGORY BUDGETS SUBSCREEN -->
+    <div class="subscreen" id="budgetsScreen">
+      <div class="subbar">
+        <button class="back" onclick="closeSub('budgetsScreen')">←</button>
+        <div class="title">Category Budgets</div>
+      </div>
+      <div class="summary-wrap" id="budgetsContent"></div>
+    </div>
+
     <!-- SPENDING SUMMARY SUBSCREEN -->
     <div class="subscreen" id="summaryScreen">
       <div class="subbar">
@@ -474,6 +505,22 @@
 <script>
 // ---------- storage ----------
 const STORAGE_KEY = 'stub_receipts';
+const BUDGETS_KEY = 'stub_budgets';
+
+function loadBudgets(){
+  try{ return JSON.parse(localStorage.getItem(BUDGETS_KEY)) || {}; }
+  catch(e){ return {}; }
+}
+function saveBudgets(obj){
+  try{ localStorage.setItem(BUDGETS_KEY, JSON.stringify(obj)); }
+  catch(e){ console.error('Could not save budgets:', e); }
+}
+function updateBudget(category, value){
+  const budgets = loadBudgets();
+  budgets[category] = value;
+  saveBudgets(budgets);
+  renderBudgetsScreen();
+}
 
 function loadReceipts(){
   try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -529,7 +576,7 @@ function csvEscape(val){
 // etc. from there far more easily than from one row per receipt.
 function exportReceiptsCSV(){
   const receipts = loadReceipts();
-  const rows = [['Date Scanned', 'Store', 'Item', 'Category', 'Item Price', 'Receipt Subtotal', 'Receipt Tax', 'Receipt Total', 'Notes', 'Return By']];
+  const rows = [['Date Scanned', 'Store', 'Item', 'Category', 'Item Price', 'Receipt Subtotal', 'Receipt Tax', 'Receipt Total', 'Notes', 'Business Expense', 'Return By']];
 
   receipts.forEach(r => {
     const items = (r.items && r.items.length) ? r.items : [{ name: '', price: '', category: '' }];
@@ -544,6 +591,7 @@ function exportReceiptsCSV(){
         r.tax || '',
         r.total || '',
         r.notes || '',
+        r.isBusiness ? 'Yes' : 'No',
         r.returnBy || ''
       ]);
     });
@@ -602,6 +650,13 @@ function updateReceiptField(field, value){
 }
 
 let activeReceipt = null; // the receipt currently being viewed/scanned (not yet necessarily saved)
+let businessOnlyFilter = false; // session-only view toggle, not persisted
+
+function toggleBusinessFilter(){
+  businessOnlyFilter = !businessOnlyFilter;
+  document.getElementById('businessFilterBtn').classList.toggle('active', businessOnlyFilter);
+  renderLibrary();
+}
 
 // Strips punctuation/case so "Trader Joe's", "trader joes", and
 // "TRADER-JOES" all read as the same thing for search purposes.
@@ -634,6 +689,10 @@ function renderLibrary(){
 
   if(categoryValue){
     filtered = filtered.filter(r => (r.items || []).some(it => (it.category || 'Other') === categoryValue));
+  }
+
+  if(businessOnlyFilter){
+    filtered = filtered.filter(r => r.isBusiness);
   }
 
   filtered.sort((a, b) => {
@@ -686,7 +745,7 @@ function getReturnBadgeHTML(r){
           <div class="rcpt-name">${r.brand || 'Receipt'}</div>
           <div class="rcpt-meta">${r.date || ''}</div>
           ${getReturnBadgeHTML(r)}
-          ${r.notes ? `<div class="rcpt-note-tag">${r.notes}</div>` : ''}
+          ${r.notes ? `<div class="rcpt-note-tag">${r.isBusiness ? '💼 ' : ''}${r.notes}</div>` : (r.isBusiness ? `<div class="rcpt-note-tag">💼 Business</div>` : '')}
         </div>
       </div>
       <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
@@ -934,6 +993,55 @@ function renderCharts(categoryEntries, monthEntries, monthNames){
       }
     });
   }
+}
+
+// ---------- category budgets ----------
+function openBudgets(){
+  renderBudgetsScreen();
+  openSub('budgetsScreen');
+}
+
+function renderBudgetsScreen(){
+  const receipts = loadReceipts();
+  const budgets = loadBudgets();
+  const el = document.getElementById('budgetsContent');
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  const byCategoryThisMonth = {};
+  receipts.forEach(r => {
+    const d = new Date(r.savedAt || Date.now());
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(monthKey !== currentMonthKey) return;
+    (r.items || []).forEach(it => {
+      const cat = it.category || 'Other';
+      const amt = parseFloat(it.price) || 0;
+      byCategoryThisMonth[cat] = (byCategoryThisMonth[cat] || 0) + amt;
+    });
+  });
+
+  el.innerHTML = `
+    <div style="font-size:12px; color:#8A8571; padding:0 2px 16px; line-height:1.6;">
+      Set a monthly target per category. These reset automatically each month — what you see here is always this month's spending.
+    </div>
+    ${CATEGORIES.map(cat => {
+      const spent = byCategoryThisMonth[cat] || 0;
+      const budget = parseFloat(budgets[cat]) || 0;
+      const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+      const urgency = pct >= 100 ? 'high' : pct >= 80 ? 'medium' : 'low';
+      return `
+        <div class="budget-row">
+          <div class="budget-row-top">
+            <span class="name">${cat}</span>
+            <span class="budget-input-wrap">$<input type="number" min="0" step="1" class="budget-input" value="${budgets[cat] || ''}" placeholder="0" onchange="updateBudget('${cat}', this.value)"></span>
+          </div>
+          <div class="meta">$${spent.toFixed(2)} spent this month${budget > 0 ? ` of $${budget.toFixed(2)}` : ''}</div>
+          ${budget > 0 ? `<div class="summary-bar-track"><div class="summary-bar-fill budget-${urgency}" style="width:${pct}%"></div></div>` : ''}
+        </div>
+      `;
+    }).join('')}
+  `;
 }
 
 // ---------- scan flow ----------
@@ -1192,11 +1300,38 @@ async function handleFile(event){
 // ---------- receipt detail screen ----------
 // isNew = true when coming from a fresh scan (not yet saved) → shows "save" behavior implicitly
 // isNew = false when opened from the library (already saved) → shows Delete instead
+// Flags a likely duplicate — same store (fuzzy-matched) and same total,
+// saved within the last few days. Loose on purpose: it's meant to catch
+// "did I scan this twice by accident," not to be a precise match.
+function findPossibleDuplicate(receipt){
+  const existing = loadReceipts();
+  const normBrand = normalizeText(receipt.brand);
+  const newTotal = parseFloat(receipt.total) || 0;
+  const now = new Date();
+
+  return existing.find(r => {
+    const existingBrand = normalizeText(r.brand);
+    if(!existingBrand || !normBrand) return false;
+    if(!existingBrand.includes(normBrand) && !normBrand.includes(existingBrand)) return false;
+
+    const total = parseFloat(r.total) || 0;
+    if(Math.abs(total - newTotal) > 0.01) return false;
+    const daysApart = Math.abs(now - new Date(r.savedAt || 0)) / 86400000;
+    return daysApart <= 3;
+  });
+}
+
 function showParsedReceipt(isNew = true){
   const r = activeReceipt;
   if(!r) return;
 
   if(isNew && !r.id){
+    const dup = findPossibleDuplicate(r);
+    if(dup){
+      const dupDate = new Date(dup.savedAt).toLocaleDateString();
+      const proceed = confirm(`This looks like a receipt you already have — ${dup.brand}, $${dup.total}, saved ${dupDate}.\n\nSave this as a separate receipt anyway?`);
+      if(!proceed) return; // leave them on the scan/manual-entry screen without saving
+    }
     activeReceipt = addReceipt(r);
   }
 
@@ -1210,6 +1345,10 @@ function showParsedReceipt(isNew = true){
       <input type="date" class="return-input" value="${r.returnBy || ''}" onchange="updateReceiptField('returnBy', this.value)">
     </div>
     <input type="text" class="notes-input" placeholder="Add a note (e.g. business expense, gift)" value="${r.notes || ''}" oninput="updateReceiptField('notes', this.value)">
+    <label class="business-checkbox">
+      <input type="checkbox" ${r.isBusiness ? 'checked' : ''} onchange="updateReceiptField('isBusiness', this.checked); renderLibrary();">
+      💼 Business expense
+    </label>
     <div class="r-divider"></div>
     ${r.items.map((it, i) => `
       <div class="r-item-row">
@@ -1337,6 +1476,7 @@ async function shareReceipt(){
 
 function deleteCurrentReceipt(){
   if(!activeReceipt || !activeReceipt.id) return;
+  if(!confirm("Delete this receipt? This can't be undone.")) return;
   deleteReceipt(activeReceipt.id);
   closeSub('receiptScreen');
   closeSub('scanScreen');
