@@ -111,15 +111,16 @@
   }
   .fab{
     background:var(--ink); color:var(--paper); border:none;
-    padding:15px; border-radius:12px; font-size:14.5px; font-weight:600;
+    padding:13px; border-radius:12px; font-size:13.5px; font-weight:600;
     display:flex; align-items:center; justify-content:center; gap:8px;
     font-family:'Space Grotesk',sans-serif; cursor:pointer;
     box-shadow:0 8px 24px rgba(0,0,0,.25);
   }
   .manual-link{
-    background:none; border:none; color:#948E77; font-size:12px;
-    text-align:center; padding:4px; font-family:'Space Grotesk',sans-serif;
-    cursor:pointer; text-decoration:underline;
+    background:transparent; color:var(--ink); border:1.5px solid var(--line);
+    padding:13px; border-radius:12px; font-size:13.5px; font-weight:600;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer;
   }
 
   .subscreen{
@@ -209,6 +210,11 @@
     margin-top:10px; font-family:'Space Grotesk',sans-serif;
   }
   .return-label{ font-size:10.5px; color:#8A8571; }
+  .return-select{
+    font-family:'Space Grotesk',sans-serif; font-size:11px; color:var(--ink);
+    background:var(--paper-dim); border:none; border-radius:6px; padding:4px 6px;
+  }
+  .return-custom-row{ display:flex; justify-content:center; margin-top:6px; }
   .return-input{
     font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink);
     background:var(--paper-dim); border:none; border-radius:6px; padding:3px 6px;
@@ -384,7 +390,7 @@
     <div class="list" id="libraryList"></div>
     <div class="fab-group">
       <button class="fab" onclick="handleFreeScan()">📷 Scan a receipt</button>
-      <button class="manual-link" onclick="handleManualEntry()">or add a receipt manually</button>
+      <button class="manual-link" onclick="handleManualEntry()">📝 Add a receipt manually</button>
     </div>
 
     <!-- SCAN SUBSCREEN -->
@@ -437,35 +443,63 @@
     <!-- FIRST-TIME WALKTHROUGH -->
     <div class="subscreen" id="walkthroughScreen">
       <div class="walkthrough-body">
-        <div class="walkthrough-title">✓ Welcome to Stub</div>
+        <div class="walkthrough-title">✓ How Stub works</div>
         <div class="walkthrough-sub">Your bank statement shows the total. Stub shows what you actually bought.</div>
 
         <div class="walkthrough-item">
           <div class="walkthrough-icon">📷</div>
           <div>
-            <div class="walkthrough-item-title">Scan or upload a receipt</div>
-            <div class="walkthrough-item-text">Take a photo, or pick one from your library — it reads the items, prices, and tax automatically, right on your phone.</div>
+            <div class="walkthrough-item-title">Scan, upload, or add manually</div>
+            <div class="walkthrough-item-text">Take a photo or pick one from your library — it reads items and prices right on your phone. No photo? Add one by hand instead.</div>
           </div>
         </div>
         <div class="walkthrough-item">
           <div class="walkthrough-icon">✏️</div>
           <div>
             <div class="walkthrough-item-title">Fix anything it gets wrong</div>
-            <div class="walkthrough-item-text">Store name, item names, prices, categories — everything's editable. No photo? Add one manually instead.</div>
+            <div class="walkthrough-item-text">Store name, items, prices, categories, notes — everything's editable, right on the receipt.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">🔍</div>
+          <div>
+            <div class="walkthrough-item-title">Search, sort & filter</div>
+            <div class="walkthrough-item-text">Find receipts by store or item, sort by date or amount, filter to one category, or just business expenses.</div>
           </div>
         </div>
         <div class="walkthrough-item">
           <div class="walkthrough-icon">📊</div>
           <div>
             <div class="walkthrough-item-title">See where your money goes</div>
-            <div class="walkthrough-item-text">The Summary tab breaks down spending by category and by month, automatically, as you add receipts.</div>
+            <div class="walkthrough-item-text">Summary breaks spending down by category and by month, with charts, updated automatically as you add receipts.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">⬇️</div>
+          <div class="walkthrough-icon">🎯</div>
           <div>
-            <div class="walkthrough-item-title">Back up your data</div>
-            <div class="walkthrough-item-text">Everything's stored only on this device. Export a backup from the Summary tab so you never lose it.</div>
+            <div class="walkthrough-item-title">Set category budgets</div>
+            <div class="walkthrough-item-text">Give any category a monthly target and track it against what you've actually spent.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">📅</div>
+          <div>
+            <div class="walkthrough-item-title">Track return windows</div>
+            <div class="walkthrough-item-text">Set a return-by date on anything, and see what's still returnable before the deadline passes.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">💼</div>
+          <div>
+            <div class="walkthrough-item-title">Tag business expenses</div>
+            <div class="walkthrough-item-text">Flag purchases as business expenses, filter to just those, and they're broken out in your CSV export.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon">🔗</div>
+          <div>
+            <div class="walkthrough-item-title">Share or back up</div>
+            <div class="walkthrough-item-text">Share any single receipt from your phone, or export everything as a backup (.json) or spreadsheet (.csv).</div>
           </div>
         </div>
 
@@ -647,6 +681,32 @@ function updateReceiptField(field, value){
     refreshTotalsDisplay();
   }
   persistActiveReceipt();
+}
+
+// Presets are anchored to when the receipt was scanned/added, not
+// "today" — if you scan something a few days late, "30 days" should
+// still count from the purchase, not from whenever you got around to it.
+function handleReturnPreset(value){
+  if(!activeReceipt) return;
+
+  if(value === ''){
+    activeReceipt.returnBy = '';
+    persistActiveReceipt();
+    showParsedReceipt(false);
+    return;
+  }
+
+  if(value === 'custom'){
+    showParsedReceipt(false); // just reveals the exact-date field below
+    return;
+  }
+
+  const days = parseInt(value, 10);
+  const anchor = activeReceipt.savedAt ? new Date(activeReceipt.savedAt) : new Date();
+  anchor.setDate(anchor.getDate() + days);
+  activeReceipt.returnBy = anchor.toISOString().slice(0, 10);
+  persistActiveReceipt();
+  showParsedReceipt(false);
 }
 
 let activeReceipt = null; // the receipt currently being viewed/scanned (not yet necessarily saved)
@@ -1342,8 +1402,21 @@ function showParsedReceipt(isNew = true){
     <div class="r-addr">${r.addr || ''}</div>
     <div class="return-row">
       <label class="return-label">Return by</label>
-      <input type="date" class="return-input" value="${r.returnBy || ''}" onchange="updateReceiptField('returnBy', this.value)">
+      <select class="return-select" onchange="handleReturnPreset(this.value)">
+        <option value="">No return date</option>
+        <option value="7">7 days</option>
+        <option value="14">14 days</option>
+        <option value="30">30 days</option>
+        <option value="60">60 days</option>
+        <option value="90">90 days</option>
+        <option value="custom" ${r.returnBy ? 'selected' : ''}>Custom date…</option>
+      </select>
     </div>
+    ${r.returnBy ? `
+      <div class="return-custom-row">
+        <input type="date" class="return-input" value="${r.returnBy}" onchange="updateReceiptField('returnBy', this.value)">
+      </div>
+    ` : ''}
     <input type="text" class="notes-input" placeholder="Add a note (e.g. business expense, gift)" value="${r.notes || ''}" oninput="updateReceiptField('notes', this.value)">
     <label class="business-checkbox">
       <input type="checkbox" ${r.isBusiness ? 'checked' : ''} onchange="updateReceiptField('isBusiness', this.checked); renderLibrary();">
