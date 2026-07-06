@@ -52,6 +52,8 @@
   }
   .brand .tick{ color:var(--stamp); }
   .appbar .sub{ margin-top:8px; font-size:13px; opacity:.65; }
+  .sub-row{ display:flex; justify-content:space-between; align-items:baseline; margin-top:8px; font-size:13px; opacity:.65; }
+  .storage-indicator{ font-size:10px; opacity:.85; white-space:nowrap; }
 
   .search-wrap{ padding:14px 22px 6px; flex-shrink:0; }
   .search-input{
@@ -360,7 +362,10 @@
           <button class="summary-btn" onclick="openSummary()">📊 Summary</button>
         </div>
       </div>
-      <div class="sub">Snap a receipt, get every item</div>
+      <div class="sub-row">
+        <span>Snap a receipt, get every item</span>
+        <span class="storage-indicator" id="storageIndicator" title="Local storage used on this device"></span>
+      </div>
     </div>
     <div class="search-wrap">
       <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
@@ -686,6 +691,21 @@ function updateReceiptField(field, value){
 // Presets are anchored to when the receipt was scanned/added, not
 // "today" — if you scan something a few days late, "30 days" should
 // still count from the purchase, not from whenever you got around to it.
+// Detects whether a stored return-by date exactly matches one of the
+// preset day-counts (anchored to the same scan date used to compute
+// it), so the dropdown can show "30 days" instead of just defaulting
+// to "Custom" every time a date exists.
+function matchingReturnPreset(r){
+  if(!r.returnBy) return '';
+  const anchor = r.savedAt ? new Date(r.savedAt) : null;
+  if(!anchor) return 'custom';
+  anchor.setHours(0, 0, 0, 0);
+  const returnDate = new Date(r.returnBy + 'T00:00:00');
+  if(isNaN(returnDate.getTime())) return 'custom';
+  const diffDays = Math.round((returnDate - anchor) / 86400000);
+  return [7, 14, 30, 60, 90].includes(diffDays) ? String(diffDays) : 'custom';
+}
+
 function handleReturnPreset(value){
   if(!activeReceipt) return;
 
@@ -736,7 +756,22 @@ function receiptMatchesQuery(receipt, query){
 }
 
 // ---------- library screen ----------
+// Rough estimate — string length approximates the storage cost closely
+// enough for a heads-up indicator; doesn't need to be byte-perfect.
+function getStorageUsageMB(){
+  try{
+    const receiptsSize = (localStorage.getItem(STORAGE_KEY) || '').length;
+    const budgetsSize = (localStorage.getItem(BUDGETS_KEY) || '').length;
+    return ((receiptsSize + budgetsSize) / (1024 * 1024)).toFixed(2);
+  } catch(e){ return '0.00'; }
+}
+function updateStorageIndicator(){
+  const el = document.getElementById('storageIndicator');
+  if(el) el.textContent = `💾 ${getStorageUsageMB()} MB used`;
+}
+
 function renderLibrary(){
+  updateStorageIndicator();
   const list = document.getElementById('libraryList');
   const query = document.getElementById('searchInput').value || '';
   const sortSelect = document.getElementById('sortSelect');
@@ -1117,7 +1152,7 @@ function handleManualEntry(){
   activeReceipt = {
     brand: 'New Receipt',
     addr: '',
-    items: [{ q: 1, name: 'Item', price: '0.00', category: 'Other' }],
+    items: [{ name: 'Item', price: '0.00', category: 'Other' }],
     subtotal: '0.00',
     tax: '0.00',
     total: '0.00'
@@ -1339,7 +1374,7 @@ async function handleFile(event){
         brand: (parsed.merchant || 'RECEIPT').toUpperCase(),
         addr: parsed.date || '',
         date: parsed.date || '',
-        items: parsed.items.map(it => ({ q: it.quantity || 1, name: it.name, price: it.price, category: it.category || 'Other' })),
+        items: parsed.items.map(it => ({ name: it.name, price: it.price, category: it.category || 'Other' })),
         subtotal: parsed.subtotal || '',
         tax: parsed.tax || '',
         total: parsed.total || '',
@@ -1403,13 +1438,14 @@ function showParsedReceipt(isNew = true){
     <div class="return-row">
       <label class="return-label">Return by</label>
       <select class="return-select" onchange="handleReturnPreset(this.value)">
-        <option value="">No return date</option>
-        <option value="7">7 days</option>
-        <option value="14">14 days</option>
-        <option value="30">30 days</option>
-        <option value="60">60 days</option>
-        <option value="90">90 days</option>
-        <option value="custom" ${r.returnBy ? 'selected' : ''}>Custom date…</option>
+        ${(() => {
+          const preset = matchingReturnPreset(r);
+          const opts = [
+            ['', 'No return date'], ['7', '7 days'], ['14', '14 days'],
+            ['30', '30 days'], ['60', '60 days'], ['90', '90 days'], ['custom', 'Custom date…']
+          ];
+          return opts.map(([val, label]) => `<option value="${val}" ${preset === val ? 'selected' : ''}>${label}</option>`).join('');
+        })()}
       </select>
     </div>
     ${r.returnBy ? `
@@ -1504,7 +1540,7 @@ function removeItem(index){
 
 function addItem(){
   if(!activeReceipt) return;
-  activeReceipt.items.push({ q: 1, name: 'New item', price: '0.00', category: 'Other' });
+  activeReceipt.items.push({ name: 'New item', price: '0.00', category: 'Other' });
   recalcTotals();
   persistActiveReceipt();
   showParsedReceipt(false);
