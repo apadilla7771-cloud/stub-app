@@ -19,15 +19,16 @@
 
   :root{
     --ink:#1A1D1B;
-    --paper:#F7F7F5;
-    --paper-dim:#ECEBE6;
-    --stamp:#D64545;
-    --verify:#12A454;
-    --gold:#D08A2E;
+    --paper:#FAFAF7;
+    --paper-dim:#EFEDE4;
+    --stamp:#E5484D;
+    --verify:#17B563;
+    --accent2:#FF6B4A;
+    --gold:#E0972E;
     --line:#DEDCD3;
     --line-strong:#A39D86;
     --text-muted:#5C5748;
-    --bg-recessed:#F0EFEA;
+    --bg-recessed:#F2F0E7;
     --card-bg:#FFFFFF;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -53,16 +54,21 @@
   .tab-header-title{ font-weight:700; font-size:18px; }
 
   .tab-bar{
-    display:flex; flex-shrink:0; background:var(--card-bg);
-    border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px);
+    display:flex; gap:8px; flex-shrink:0; background:var(--card-bg);
+    border-top:1px solid var(--line); padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px);
   }
   .tab-bar-btn{
-    flex:1; background:none; border:none; padding:10px 4px 8px; cursor:pointer;
+    flex:1; background:var(--paper-dim); border:1.5px solid var(--line-strong); border-radius:14px;
+    padding:8px 4px 7px; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; gap:3px;
-    font-family:'Space Grotesk',sans-serif; font-size:10.5px; font-weight:600; color:var(--text-muted);
+    font-family:'Space Grotesk',sans-serif; font-size:10.5px; font-weight:700; color:var(--text-muted);
+    transition:background .15s, color .15s, border-color .15s, box-shadow .15s;
   }
   .tab-bar-icon{ font-size:19px; }
-  .tab-bar-btn.active{ color:var(--verify); }
+  .tab-bar-btn.active{
+    background:var(--accent2); border-color:var(--accent2); color:#fff;
+    box-shadow:0 3px 10px rgba(255,107,74,.35);
+  }
 
   .appbar{
     background:var(--ink); color:var(--paper);
@@ -324,7 +330,7 @@
   .summary-wrap{ flex:1; overflow-y:auto; padding:18px 22px 40px; background:var(--bg-recessed); }
   .summary-hero{
     background:var(--verify); color:#fff; border-radius:16px; padding:24px;
-    margin-bottom:16px; text-align:center; box-shadow:0 4px 16px rgba(18,164,84,.25);
+    margin-bottom:16px; text-align:center; box-shadow:0 4px 16px rgba(23,181,99,.25);
   }
   .summary-hero .big-num{ font-family:'IBM Plex Mono',monospace; font-size:34px; font-weight:600; margin-top:6px; letter-spacing:-.5px; }
   .summary-hero .label{ font-size:11px; opacity:.65; letter-spacing:1px; text-transform:uppercase; }
@@ -367,7 +373,16 @@
   .helper-msg.bot{
     align-self:flex-start; background:var(--card-bg); color:var(--ink);
     border:1px solid var(--line); border-bottom-left-radius:4px;
+    display:flex; align-items:flex-start; gap:8px;
   }
+  .helper-bot-avatar{ flex-shrink:0; color:var(--verify); margin-top:1px; }
+
+  .bot-icon{ display:inline-block; vertical-align:middle; animation:botBob 2.4s ease-in-out infinite; }
+  .bot-eye{ transform-box:fill-box; transform-origin:center; animation:botBlink 3.6s ease-in-out infinite; }
+  .bot-antenna-dot{ transform-box:fill-box; transform-origin:center; animation:botPulse 1.8s ease-in-out infinite; }
+  @keyframes botBob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-2px); } }
+  @keyframes botBlink{ 0%,88%,100%{ transform:scaleY(1); } 94%{ transform:scaleY(0.15); } }
+  @keyframes botPulse{ 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(1.3); opacity:.6; } }
   .helper-msg.user{
     align-self:flex-end; background:var(--verify); color:#fff; border-bottom-right-radius:4px;
   }
@@ -436,7 +451,7 @@
           <div class="brand"><span class="tick">✓</span> Stub</div>
           <div style="display:flex; gap:6px;">
             <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
-            <button class="summary-btn" onclick="openHelper()" title="Ask a question">💬 Help</button>
+            <button class="summary-btn" id="helperBtn" onclick="openHelper()" title="Ask a question">Help</button>
           </div>
         </div>
         <div class="sub-row">
@@ -643,6 +658,20 @@
 
 <script>
 // ---------- storage ----------
+// Reused as both the header entry-point icon and the avatar next to each
+// chat reply, so the helper reads as one consistent little character
+// rather than a generic emoji. Uses currentColor so it inherits whatever
+// text color the surrounding button/bubble already has.
+const BOT_ICON_SVG = `
+<svg class="bot-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <circle class="bot-antenna-dot" cx="12" cy="1.6" r="1.3" fill="currentColor"/>
+  <rect x="4" y="5" width="16" height="14" rx="5" fill="currentColor" opacity="0.15"/>
+  <rect x="4" y="5" width="16" height="14" rx="5" stroke="currentColor" stroke-width="1.5"/>
+  <circle class="bot-eye" cx="9" cy="12" r="1.6" fill="currentColor"/>
+  <circle class="bot-eye" cx="15" cy="12" r="1.6" fill="currentColor"/>
+</svg>`;
+
 const STORAGE_KEY = 'stub_receipts';
 const BUDGETS_KEY = 'stub_budgets';
 
@@ -960,6 +989,7 @@ function getReturnBadgeHTML(r){
   });
 }
 renderLibrary();
+document.getElementById('helperBtn').innerHTML = BOT_ICON_SVG + ' Help';
 
 // ---------- first-time walkthrough ----------
 const WALKTHROUGH_SEEN_KEY = 'stub_seen_walkthrough';
@@ -1037,7 +1067,17 @@ function addHelperMessage(sender, text){
   const chat = document.getElementById('helperChat');
   const msg = document.createElement('div');
   msg.className = `helper-msg ${sender}`;
-  msg.textContent = text;
+  if(sender === 'bot'){
+    const avatar = document.createElement('span');
+    avatar.className = 'helper-bot-avatar';
+    avatar.innerHTML = BOT_ICON_SVG;
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text; // real message text always goes through textContent, never innerHTML, even for bot replies
+    msg.appendChild(avatar);
+    msg.appendChild(textSpan);
+  } else {
+    msg.textContent = text;
+  }
   chat.appendChild(msg);
   chat.scrollTop = chat.scrollHeight;
 }
