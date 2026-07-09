@@ -42,6 +42,28 @@
   .phone{ width:100%; max-width:480px; height:100dvh; background:var(--paper); position:relative; }
   .screen{ width:100%; height:100%; background:var(--paper); overflow:hidden; position:relative; display:flex; flex-direction:column; }
 
+  .tab-panel{ display:none; flex-direction:column; flex:1; min-height:0; }
+  .tab-panel.active{ display:flex; }
+
+  .tab-header-bar{
+    background:var(--ink); color:var(--paper);
+    padding:calc(env(safe-area-inset-top, 0px) + 18px) 22px 16px;
+    flex-shrink:0;
+  }
+  .tab-header-title{ font-weight:700; font-size:18px; }
+
+  .tab-bar{
+    display:flex; flex-shrink:0; background:var(--card-bg);
+    border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .tab-bar-btn{
+    flex:1; background:none; border:none; padding:10px 4px 8px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    font-family:'Space Grotesk',sans-serif; font-size:10.5px; font-weight:600; color:var(--text-muted);
+  }
+  .tab-bar-icon{ font-size:19px; }
+  .tab-bar-btn.active{ color:var(--verify); }
+
   .appbar{
     background:var(--ink); color:var(--paper);
     padding:calc(env(safe-area-inset-top, 0px) + 18px) 22px 18px;
@@ -83,7 +105,7 @@
     color:#6B6558; padding:16px 22px 8px; font-weight:700; flex-shrink:0;
     background:var(--bg-recessed);
   }
-  .list{ flex:1; overflow-y:auto; padding:0 22px 80px; background:var(--bg-recessed); }
+  .list{ flex:1; overflow-y:auto; padding:0 22px 16px; background:var(--bg-recessed); }
 
   .empty-state{
     padding:40px 30px; text-align:center; color:#6B6558; font-size:13.5px; line-height:1.7;
@@ -116,10 +138,12 @@
   .return-badge.medium{ background:rgba(169,131,43,.15); color:var(--gold); }
   .return-badge.high{ background:rgba(178,58,46,.12); color:var(--stamp); }
   .rcpt-amt{ font-family:'IBM Plex Mono', monospace; font-size:14.5px; font-weight:600; color:var(--ink); flex-shrink:0; margin-left:10px; }
+  .rcpt-chevron{ color:var(--line-strong); font-size:18px; font-weight:600; flex-shrink:0; margin-left:6px; }
+  .rcpt-right{ display:flex; align-items:center; flex-shrink:0; }
 
   .fab-group{
-    position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 20px); left:22px; right:22px;
-    z-index:5; display:flex; flex-direction:column; gap:8px;
+    flex-shrink:0; padding:10px 22px calc(env(safe-area-inset-bottom,0px) + 10px);
+    display:flex; flex-direction:column; gap:8px; background:var(--bg-recessed);
   }
   .fab{
     background:var(--verify); color:#fff; border:none;
@@ -154,8 +178,8 @@
   }
   .subbar .title{ font-weight:600; font-size:15px; flex:1; }
   .delete-btn{
-    background:none; border:none; color:var(--stamp); font-size:13px; font-weight:600; cursor:pointer;
-    font-family:'Space Grotesk',sans-serif;
+    background:none; border:1.5px solid var(--stamp); color:var(--stamp); font-size:12px; font-weight:600; cursor:pointer;
+    font-family:'Space Grotesk',sans-serif; padding:5px 10px; border-radius:8px;
   }
 
   .scan-body{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; gap:18px; }
@@ -331,10 +355,47 @@
   .budget-row-top{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; }
   .budget-input-wrap{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); }
   .budget-input{
-    width:50px; border:none; background:var(--paper-dim); border-radius:6px; padding:3px 5px;
+    width:50px; border:1.5px solid var(--line-strong); background:#fff; border-radius:6px; padding:3px 5px;
     font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); text-align:right;
   }
   .chart-wrap{ height:180px; margin-bottom:8px; position:relative; }
+  .helper-chat{
+    flex:1; overflow-y:auto; padding:18px 18px 8px; display:flex; flex-direction:column; gap:10px;
+    background:var(--bg-recessed);
+  }
+  .helper-msg{ max-width:80%; padding:10px 13px; border-radius:14px; font-size:13px; line-height:1.5; }
+  .helper-msg.bot{
+    align-self:flex-start; background:var(--card-bg); color:var(--ink);
+    border:1px solid var(--line); border-bottom-left-radius:4px;
+  }
+  .helper-msg.user{
+    align-self:flex-end; background:var(--verify); color:#fff; border-bottom-right-radius:4px;
+  }
+  .helper-suggestions{
+    display:flex; flex-wrap:wrap; gap:6px; padding:8px 18px; background:var(--bg-recessed); flex-shrink:0;
+  }
+  .helper-chip{
+    background:var(--card-bg); border:1.5px solid var(--line-strong); border-radius:20px;
+    padding:6px 12px; font-size:11px; color:var(--ink); font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  }
+  .helper-input-row{
+    display:flex; gap:8px; padding:12px 18px calc(env(safe-area-inset-bottom,0px) + 12px);
+    background:var(--card-bg); border-top:1px solid var(--line); flex-shrink:0;
+  }
+  .helper-input{
+    flex:1; padding:10px 14px; border-radius:20px; border:1.5px solid var(--line-strong);
+    background:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px; color:var(--ink); outline:none;
+  }
+  .helper-send-btn{
+    width:38px; height:38px; border-radius:50%; background:var(--verify); color:#fff;
+    border:none; font-size:15px; cursor:pointer; flex-shrink:0;
+  }
+
+  .walkthrough-close{
+    position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:18px; z-index:20;
+    width:32px; height:32px; border-radius:50%; background:var(--paper-dim); border:1.5px solid var(--line-strong);
+    color:var(--ink); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
   .walkthrough-body{
     flex:1; overflow-y:auto; padding:calc(env(safe-area-inset-top,0px) + 40px) 26px 30px;
     display:flex; flex-direction:column;
@@ -368,50 +429,84 @@
 <div class="phone">
   <div class="screen">
 
-    <!-- MAIN: receipt library -->
-    <div class="appbar">
-      <div class="appbar-top">
-        <div class="brand"><span class="tick">✓</span> Stub</div>
-        <div style="display:flex; gap:6px;">
-          <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
-          <button class="summary-btn" onclick="openBudgets()">🎯 Budgets</button>
-          <button class="summary-btn" onclick="openSummary()">📊 Summary</button>
+    <!-- HOME TAB -->
+    <div class="tab-panel active" id="homeTabPanel">
+      <div class="appbar">
+        <div class="appbar-top">
+          <div class="brand"><span class="tick">✓</span> Stub</div>
+          <div style="display:flex; gap:6px;">
+            <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
+            <button class="summary-btn" onclick="openHelper()" title="Ask a question">💬 Help</button>
+          </div>
+        </div>
+        <div class="sub-row">
+          <span>Snap a receipt, get every item</span>
+          <span class="storage-indicator" id="storageIndicator" title="Local storage used on this device"></span>
         </div>
       </div>
-      <div class="sub-row">
-        <span>Snap a receipt, get every item</span>
-        <span class="storage-indicator" id="storageIndicator" title="Local storage used on this device"></span>
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
+        <div class="filter-wrap">
+          <select id="sortSelect" class="filter-select" onchange="renderLibrary()">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="amount_high">Highest amount</option>
+            <option value="amount_low">Lowest amount</option>
+          </select>
+          <select id="categoryFilterSelect" class="filter-select" onchange="renderLibrary()">
+            <option value="">All categories</option>
+            <option value="Groceries">Groceries</option>
+            <option value="Clothing">Clothing</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Health & Beauty">Health & Beauty</option>
+            <option value="Home">Home</option>
+            <option value="Restaurants">Restaurants</option>
+            <option value="Gas">Gas</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <button class="business-filter-btn" id="businessFilterBtn" onclick="toggleBusinessFilter()">💼 Business expenses only</button>
+      </div>
+      <div class="list-label">My receipts</div>
+      <div class="list" id="libraryList"></div>
+      <div class="fab-group">
+        <button class="fab" onclick="handleFreeScan()">📷 Scan a receipt</button>
+        <button class="manual-link" onclick="handleManualEntry()">📝 Add a receipt manually</button>
       </div>
     </div>
-    <div class="search-wrap">
-      <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
-      <div class="filter-wrap">
-        <select id="sortSelect" class="filter-select" onchange="renderLibrary()">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="amount_high">Highest amount</option>
-          <option value="amount_low">Lowest amount</option>
-        </select>
-        <select id="categoryFilterSelect" class="filter-select" onchange="renderLibrary()">
-          <option value="">All categories</option>
-          <option value="Groceries">Groceries</option>
-          <option value="Clothing">Clothing</option>
-          <option value="Electronics">Electronics</option>
-          <option value="Health & Beauty">Health & Beauty</option>
-          <option value="Home">Home</option>
-          <option value="Restaurants">Restaurants</option>
-          <option value="Gas">Gas</option>
-          <option value="Entertainment">Entertainment</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <button class="business-filter-btn" id="businessFilterBtn" onclick="toggleBusinessFilter()">💼 Business expenses only</button>
+
+    <!-- BUDGETS TAB -->
+    <div class="tab-panel" id="budgetsTabPanel">
+      <div class="tab-header-bar"><div class="tab-header-title">🎯 Category Budgets</div></div>
+      <div class="summary-wrap" id="budgetsContent"></div>
     </div>
-    <div class="list-label">My receipts</div>
-    <div class="list" id="libraryList"></div>
-    <div class="fab-group">
-      <button class="fab" onclick="handleFreeScan()">📷 Scan a receipt</button>
-      <button class="manual-link" onclick="handleManualEntry()">📝 Add a receipt manually</button>
+
+    <!-- SUMMARY TAB -->
+    <div class="tab-panel" id="summaryTabPanel">
+      <div class="tab-header-bar"><div class="tab-header-title">📊 Spending Summary</div></div>
+      <div class="summary-wrap" id="summaryContent"></div>
+      <div class="backup-bar">
+        <div class="backup-bar-row">
+          <button class="backup-btn" onclick="exportReceipts()">⬇️ Backup (.json)</button>
+          <button class="backup-btn" onclick="exportReceiptsCSV()">📄 Spreadsheet (.csv)</button>
+        </div>
+        <button class="backup-btn" onclick="document.getElementById('importInput').click()">⬆️ Import backup</button>
+        <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importReceiptsFile(event)">
+      </div>
+    </div>
+
+    <!-- BOTTOM TAB BAR -->
+    <div class="tab-bar">
+      <button class="tab-bar-btn" id="tabBtn-budgets" onclick="switchTab('budgets')">
+        <span class="tab-bar-icon">🎯</span><span>Budgets</span>
+      </button>
+      <button class="tab-bar-btn active" id="tabBtn-home" onclick="switchTab('home')">
+        <span class="tab-bar-icon">🧾</span><span>My Receipts</span>
+      </button>
+      <button class="tab-bar-btn" id="tabBtn-summary" onclick="switchTab('summary')">
+        <span class="tab-bar-icon">📊</span><span>Summary</span>
+      </button>
     </div>
 
     <!-- SCAN SUBSCREEN -->
@@ -461,8 +556,23 @@
       </div>
     </div>
 
+    <!-- HELP CHAT -->
+    <div class="subscreen" id="helperScreen">
+      <div class="subbar">
+        <button class="back" onclick="closeSub('helperScreen')">←</button>
+        <div class="title">Help</div>
+      </div>
+      <div class="helper-chat" id="helperChat"></div>
+      <div class="helper-suggestions" id="helperSuggestions"></div>
+      <div class="helper-input-row">
+        <input type="text" class="helper-input" id="helperInput" placeholder="Ask a question…" onkeydown="if(event.key==='Enter') sendHelperMessage()">
+        <button class="helper-send-btn" onclick="sendHelperMessage()">➤</button>
+      </div>
+    </div>
+
     <!-- FIRST-TIME WALKTHROUGH -->
     <div class="subscreen" id="walkthroughScreen">
+      <button class="walkthrough-close" onclick="dismissWalkthrough()" title="Close">✕</button>
       <div class="walkthrough-body">
         <div class="walkthrough-title">✓ How Stub works</div>
         <div class="walkthrough-sub">Your bank statement shows the total. Stub shows what you actually bought.</div>
@@ -525,32 +635,6 @@
         </div>
 
         <button class="scan-btn" style="width:100%; margin-top:10px;" onclick="dismissWalkthrough()">Got it, let's go</button>
-      </div>
-    </div>
-
-    <!-- CATEGORY BUDGETS SUBSCREEN -->
-    <div class="subscreen" id="budgetsScreen">
-      <div class="subbar">
-        <button class="back" onclick="closeSub('budgetsScreen')">←</button>
-        <div class="title">Category Budgets</div>
-      </div>
-      <div class="summary-wrap" id="budgetsContent"></div>
-    </div>
-
-    <!-- SPENDING SUMMARY SUBSCREEN -->
-    <div class="subscreen" id="summaryScreen">
-      <div class="subbar">
-        <button class="back" onclick="closeSub('summaryScreen')">←</button>
-        <div class="title">Spending Summary</div>
-      </div>
-      <div class="summary-wrap" id="summaryContent"></div>
-      <div class="backup-bar">
-        <div class="backup-bar-row">
-          <button class="backup-btn" onclick="exportReceipts()">⬇️ Backup (.json)</button>
-          <button class="backup-btn" onclick="exportReceiptsCSV()">📄 Spreadsheet (.csv)</button>
-        </div>
-        <button class="backup-btn" onclick="document.getElementById('importInput').click()">⬆️ Import backup</button>
-        <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importReceiptsFile(event)">
       </div>
     </div>
 
@@ -867,7 +951,10 @@ function getReturnBadgeHTML(r){
           ${r.notes ? `<div class="rcpt-note-tag">${r.isBusiness ? '💼 ' : ''}${r.notes}</div>` : (r.isBusiness ? `<div class="rcpt-note-tag">💼 Business</div>` : '')}
         </div>
       </div>
-      <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
+      <div class="rcpt-right">
+        <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
+        <div class="rcpt-chevron">›</div>
+      </div>
     `;
     card.appendChild(row);
   });
@@ -884,11 +971,108 @@ function dismissWalkthrough(){
   closeSub('walkthroughScreen');
 }
 
-// ---------- spending summary ----------
-function openSummary(){
-  renderSummary();
-  openSub('summaryScreen');
+// ---------- help chat ----------
+// A free, simple keyword-matched FAQ — not a real AI model. Each entry
+// scores by how many of its keywords appear in what was typed; the
+// highest-scoring entry above zero wins.
+const HELPER_KB = [
+  { keywords: ['scan', 'photo', 'camera', 'take picture', 'upload'],
+    answer: 'Tap "📷 Scan a receipt" on the My Receipts tab, then "Take or upload photo." You can take a new photo or pick one from your library — it reads the items and prices automatically, right on your phone.' },
+  { keywords: ['manual', 'manually', 'no photo', 'without photo', 'by hand'],
+    answer: 'Tap "📝 Add a receipt manually" right below the scan button. It opens a blank receipt you can fill in by hand — the same editable screen as a scanned one.' },
+  { keywords: ['edit', 'wrong', 'fix', 'mistake', 'incorrect', 'change item', 'change price'],
+    answer: "Everything on a receipt is editable — tap the store name, any item's name or price, the category dropdown, tax, or notes. Subtotal and total recalculate automatically as you edit items." },
+  { keywords: ['category', 'categories', 'categorize'],
+    answer: 'Each item gets auto-guessed into a category based on its name. If it guesses wrong, tap the small dropdown under that item and pick the right one.' },
+  { keywords: ['search'],
+    answer: 'Use the search bar at the top of My Receipts. It matches by store name or any item, ignoring capitalization, punctuation, and word order.' },
+  { keywords: ['sort', 'newest', 'oldest', 'highest', 'lowest'],
+    answer: 'Use the "Newest first" dropdown under the search bar — sort by newest, oldest, highest amount, or lowest amount.' },
+  { keywords: ['filter'],
+    answer: 'Use the "All categories" dropdown to narrow to one category, or tap "Business expenses only" to show just receipts tagged as business.' },
+  { keywords: ['business', 'expense', 'tax deduction', 'work purchase'],
+    answer: 'Open any receipt and check the "💼 Business expense" box. You can filter to just those, and they\'re marked in your CSV export too.' },
+  { keywords: ['budget', 'budgets', 'spending limit', 'target'],
+    answer: "The 🎯 Budgets tab lets you set a monthly dollar target per category. It shows what you've actually spent this month against that target, with a progress bar that turns amber then red as you approach or go over." },
+  { keywords: ['summary', 'chart', 'graph', 'spending breakdown', 'how much'],
+    answer: "The 📊 Summary tab shows this month's total, a category breakdown with a chart, a monthly spending chart, your top stores, and anything with an active return window — updated automatically as you add receipts." },
+  { keywords: ['return', 'return by', 'return window', 'refund', 'return date'],
+    answer: 'On any receipt, use the "Return by" dropdown to set a window (7/14/30/60/90 days, or a custom date). It shows a colored badge in your list and appears under "Returnable soon" in Summary until it expires.' },
+  { keywords: ['backup', 'back up', 'export', 'json', 'save my data', 'lose my data'],
+    answer: 'Go to the Summary tab and tap "⬇️ Backup (.json)" — it downloads every receipt. Do this occasionally, since everything is only stored on this device.' },
+  { keywords: ['csv', 'spreadsheet', 'excel', 'sheets'],
+    answer: 'In the Summary tab, tap "📄 Spreadsheet (.csv)" — downloads a CSV with one row per item, ready to open in Excel or Google Sheets.' },
+  { keywords: ['import', 'restore', 'new phone', 'reinstall'],
+    answer: 'In the Summary tab, tap "⬆️ Import backup" and choose your .json file. It merges in safely — importing the same file twice won\'t create duplicates.' },
+  { keywords: ['share'],
+    answer: 'Open any receipt and tap "🔗 Share" — opens your phone\'s normal share sheet, or copies the receipt as text if sharing isn\'t supported.' },
+  { keywords: ['delete', 'remove receipt'],
+    answer: 'Open the receipt and tap "Delete" in the top right. It\'ll ask you to confirm first, since it can\'t be undone.' },
+  { keywords: ['private', 'privacy', 'stored', 'safe', 'where is my data'],
+    answer: "Everything stays only on your device, in your browser's local storage. Nothing is sent to a server — that's also why backups matter, since clearing your browser data would erase everything." },
+  { keywords: ['accurate', 'accuracy', 'wrong reading', "doesn't work", 'bad scan', 'blurry'],
+    answer: "It uses free, on-device OCR, which works best on flat, well-lit, non-thermal receipts. It won't be perfect — that's exactly why every field is editable by hand." },
+  { keywords: ['storage', 'space', 'full', 'megabyte'],
+    answer: 'Check the "💾 X.XX MB used" indicator on My Receipts. Photos take up the most space — if you\'re close to your device\'s limit, export a backup and delete a few old receipts.' },
+  { keywords: ['duplicate', 'scanned twice', 'already added'],
+    answer: 'It checks for a likely duplicate (same store, same total, within a few days) before saving, and asks you to confirm before adding it again.' }
+];
+
+function matchHelperQuestion(userText){
+  const normalized = normalizeText(userText);
+  if(!normalized) return null;
+  let best = null, bestScore = 0;
+  HELPER_KB.forEach(entry => {
+    let score = 0;
+    entry.keywords.forEach(k => {
+      const normK = normalizeText(k);
+      if(normK && normalized.includes(normK)) score += normK.split(' ').length;
+    });
+    if(score > bestScore){ bestScore = score; best = entry; }
+  });
+  return best;
 }
+
+function addHelperMessage(sender, text){
+  const chat = document.getElementById('helperChat');
+  const msg = document.createElement('div');
+  msg.className = `helper-msg ${sender}`;
+  msg.textContent = text;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function renderHelperSuggestions(){
+  const wrap = document.getElementById('helperSuggestions');
+  const picks = ['How do I scan a receipt?', 'How do budgets work?', 'Is my data private?', 'How do I back up my data?'];
+  wrap.innerHTML = picks.map(q => `<button class="helper-chip" onclick="sendHelperMessage(this.textContent)">${q}</button>`).join('');
+}
+
+function openHelper(){
+  const chat = document.getElementById('helperChat');
+  if(!chat.dataset.initialized){
+    addHelperMessage('bot', "Hi! I can answer questions about how Stub works — try one below, or type your own.");
+    renderHelperSuggestions();
+    chat.dataset.initialized = '1';
+  }
+  openSub('helperScreen');
+}
+
+function sendHelperMessage(presetText){
+  const input = document.getElementById('helperInput');
+  const text = (presetText !== undefined ? presetText : input.value).trim();
+  if(!text) return;
+
+  addHelperMessage('user', text);
+  input.value = '';
+
+  const match = matchHelperQuestion(text);
+  setTimeout(() => {
+    addHelperMessage('bot', match ? match.answer : "I'm not sure about that one — try rephrasing, or check the \"?\" walkthrough for a full overview of what Stub can do.");
+  }, 300);
+}
+
+// ---------- spending summary ----------
 
 // Grouped by savedAt (when it was scanned into the app) rather than the
 // OCR-parsed date, since savedAt is always a reliable timestamp — the
@@ -1115,9 +1299,18 @@ function renderCharts(categoryEntries, monthEntries, monthNames){
 }
 
 // ---------- category budgets ----------
-function openBudgets(){
-  renderBudgetsScreen();
-  openSub('budgetsScreen');
+// Switches between the three bottom-tab panels (home/budgets/summary).
+// Unlike the scan/receipt-detail/walkthrough subscreens, these are peers,
+// not a drill-down stack — so no back button, just re-render fresh data
+// on whichever tab you're switching to and update the active tab state.
+function switchTab(name){
+  ['home', 'budgets', 'summary'].forEach(t => {
+    document.getElementById(`${t}TabPanel`).classList.toggle('active', t === name);
+    document.getElementById(`tabBtn-${t}`).classList.toggle('active', t === name);
+  });
+  if(name === 'budgets') renderBudgetsScreen();
+  if(name === 'summary') renderSummary();
+  if(name === 'home') renderLibrary();
 }
 
 function renderBudgetsScreen(){
@@ -1199,9 +1392,10 @@ function togglePhoto(){
 function goToMainScreen(){
   closeSub('receiptScreen');
   closeSub('scanScreen');
-  closeSub('summaryScreen');
   activeReceipt = null;
   renderLibrary();
+  renderBudgetsScreen();
+  renderSummary();
 }
 
 function resetScanScreen(){
