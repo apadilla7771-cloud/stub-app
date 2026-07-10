@@ -358,6 +358,13 @@
   .summary-row .amt{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink); }
   .summary-bar-track{ background:var(--paper-dim); border-radius:4px; height:6px; margin-top:6px; overflow:hidden; }
   .summary-bar-fill{ background:var(--stamp); height:100%; border-radius:4px; }
+  .budget-track{
+    height:10px; border:1.5px solid var(--line-strong); border-radius:6px; margin-top:4px;
+  }
+  .budget-remaining{ font-size:11px; font-weight:700; margin-top:8px; }
+  .budget-remaining.low{ color:var(--verify); }
+  .budget-remaining.medium{ color:var(--gold); }
+  .budget-remaining.high{ color:var(--stamp); }
   .summary-bar-fill.budget-low{ background:var(--verify); }
   .summary-bar-fill.budget-medium{ background:var(--gold); }
   .summary-bar-fill.budget-high{ background:var(--stamp); }
@@ -370,6 +377,21 @@
     font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); text-align:right;
   }
   .chart-wrap{ height:180px; margin-bottom:8px; position:relative; }
+  .bot-toast{
+    position:absolute; left:16px; right:16px; bottom:82px; z-index:30;
+    background:var(--card-bg); border:1.5px solid var(--line-strong); border-radius:14px;
+    padding:12px 14px; display:flex; align-items:flex-start; gap:10px;
+    box-shadow:0 6px 20px rgba(26,29,27,.18);
+    transform:translateY(120%); opacity:0; transition:transform .3s ease, opacity .3s ease;
+    pointer-events:none;
+  }
+  .bot-toast.show{ transform:translateY(0); opacity:1; pointer-events:auto; }
+  .bot-toast-avatar{ color:var(--verify); flex-shrink:0; margin-top:1px; }
+  .bot-toast-text{ flex:1; font-size:12.5px; color:var(--ink); line-height:1.5; }
+  .bot-toast-close{
+    background:none; border:none; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px;
+  }
+
   .helper-chat{
     flex:1; overflow-y:auto; padding:18px 18px 8px; display:flex; flex-direction:column; gap:10px;
     background:var(--bg-recessed);
@@ -577,6 +599,13 @@
           <button class="scan-btn" data-icon="check" onclick="goToMainScreen()">Done</button>
         </div>
       </div>
+    </div>
+
+    <!-- BOT BUDGET REMINDER TOAST -->
+    <div class="bot-toast" id="botToast">
+      <span class="bot-toast-avatar" id="botToastAvatar"></span>
+      <div class="bot-toast-text" id="botToastText"></div>
+      <button class="bot-toast-close" data-icon="x" data-icon-size="12" data-icon-only="true" onclick="hideBotToast()"></button>
     </div>
 
     <!-- HELP CHAT -->
@@ -1029,6 +1058,7 @@ function getReturnBadgeHTML(r){
 }
 renderLibrary();
 document.getElementById('helperBtn').innerHTML = BOT_ICON_SVG + ' Help';
+setTimeout(checkBudgetAlerts, 1200);
 
 // One-time pass: replace every [data-icon] placeholder with its real SVG.
 // data-icon-only="true" replaces the whole element's content; otherwise
@@ -1159,6 +1189,68 @@ function sendHelperMessage(presetText){
   setTimeout(() => {
     addHelperMessage('bot', match ? match.answer : "I'm not sure about that one — try rephrasing, or check the \"?\" walkthrough for a full overview of what Stub can do.");
   }, 300);
+}
+
+// ---------- proactive budget reminders ----------
+// Alerted categories are tracked only for this session (resets on reload)
+// so the same reminder doesn't nag every single time you switch tabs —
+// but a fresh visit will re-check and remind you again if still relevant.
+const budgetAlertsShownThisSession = new Set();
+let botToastTimer = null;
+
+function showBotToast(text){
+  const toast = document.getElementById('botToast');
+  document.getElementById('botToastAvatar').innerHTML = BOT_ICON_SVG;
+  document.getElementById('botToastText').textContent = text;
+  toast.classList.add('show');
+  clearTimeout(botToastTimer);
+  botToastTimer = setTimeout(hideBotToast, 6000);
+}
+
+function hideBotToast(){
+  document.getElementById('botToast').classList.remove('show');
+  clearTimeout(botToastTimer);
+}
+
+// Checks every category's spend-vs-budget for the current month and
+// surfaces a reminder for the single most urgent one still worth
+// mentioning (over budget, or within 20% of the limit).
+function checkBudgetAlerts(){
+  const budgets = loadBudgets();
+  const receipts = loadReceipts();
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  const spentByCategory = {};
+  receipts.forEach(r => {
+    const d = new Date(r.savedAt || Date.now());
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(monthKey !== currentMonthKey) return;
+    (r.items || []).forEach(it => {
+      const cat = it.category || 'Other';
+      spentByCategory[cat] = (spentByCategory[cat] || 0) + (parseFloat(it.price) || 0);
+    });
+  });
+
+  let best = null; // the most urgent category still worth alerting on
+  CATEGORIES.forEach(cat => {
+    const budget = parseFloat(budgets[cat]) || 0;
+    if(budget <= 0) return;
+    const spent = spentByCategory[cat] || 0;
+    const pct = spent / budget;
+    if(pct < 0.8) return; // not close enough to bother mentioning
+    if(budgetAlertsShownThisSession.has(cat)) return;
+    if(!best || pct > best.pct) best = { cat, spent, budget, pct };
+  });
+
+  if(!best) return;
+  budgetAlertsShownThisSession.add(best.cat);
+
+  const remaining = best.budget - best.spent;
+  const msg = remaining < 0
+    ? `Heads up — you're $${Math.abs(remaining).toFixed(2)} over your ${best.cat} budget this month.`
+    : `You've used ${Math.round(best.pct*100)}% of your ${best.cat} budget — $${remaining.toFixed(2)} left this month.`;
+  showBotToast(msg);
 }
 
 // ---------- spending summary ----------
@@ -1400,6 +1492,7 @@ function switchTab(name){
   if(name === 'budgets') renderBudgetsScreen();
   if(name === 'summary') renderSummary();
   if(name === 'home') renderLibrary();
+  if(name === 'budgets' || name === 'home') checkBudgetAlerts();
 }
 
 function renderBudgetsScreen(){
@@ -1438,7 +1531,10 @@ function renderBudgetsScreen(){
             <span class="budget-input-wrap">$<input type="number" min="0" step="1" class="budget-input" value="${budgets[cat] || ''}" placeholder="0" onchange="updateBudget('${cat}', this.value)"></span>
           </div>
           <div class="meta">$${spent.toFixed(2)} spent this month${budget > 0 ? ` of $${budget.toFixed(2)}` : ''}</div>
-          ${budget > 0 ? `<div class="summary-bar-track"><div class="summary-bar-fill budget-${urgency}" style="width:${pct}%"></div></div>` : ''}
+          ${budget > 0 ? `
+            <div class="budget-remaining ${urgency}">${spent > budget ? `$${(spent - budget).toFixed(2)} over budget` : `$${(budget - spent).toFixed(2)} left`}</div>
+            <div class="summary-bar-track budget-track"><div class="summary-bar-fill budget-${urgency}" style="width:${pct}%"></div></div>
+          ` : ''}
         </div>
       `;
     }).join('')}
