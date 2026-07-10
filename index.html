@@ -88,8 +88,13 @@
   .storage-indicator{ font-size:10px; opacity:.85; white-space:nowrap; }
 
   .search-wrap{ padding:14px 22px 10px; flex-shrink:0; background:var(--bg-recessed); }
+  .search-input-wrap{ position:relative; }
+  .search-icon{
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    color:#8A8571; pointer-events:none; display:flex;
+  }
   .search-input{
-    width:100%; padding:11px 14px; border-radius:12px; border:1.5px solid var(--line-strong);
+    width:100%; padding:11px 14px 11px 36px; border-radius:12px; border:1.5px solid var(--line-strong);
     background:#fff; font-family:'Space Grotesk',sans-serif; font-size:13.5px; color:var(--ink);
     outline:none;
   }
@@ -116,7 +121,7 @@
   .empty-state{
     padding:40px 30px; text-align:center; color:#6B6558; font-size:13.5px; line-height:1.7;
   }
-  .empty-state-icon{ font-size:32px; margin-bottom:10px; opacity:.6; }
+  .empty-state-icon{ margin-bottom:10px; opacity:.5; display:flex; justify-content:center; color:var(--text-muted); }
 
   .list-card{
     background:var(--card-bg); border-radius:16px; overflow:hidden;
@@ -448,7 +453,7 @@
     <div class="tab-panel active" id="homeTabPanel">
       <div class="appbar">
         <div class="appbar-top">
-          <div class="brand"><span class="tick">✓</span> Stub</div>
+          <div class="brand"><span class="tick" data-icon="check" data-icon-size="18" data-icon-only="true"></span> Stub</div>
           <div style="display:flex; gap:6px;">
             <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
             <button class="summary-btn" id="helperBtn" onclick="openHelper()" title="Ask a question">Help</button>
@@ -460,7 +465,10 @@
         </div>
       </div>
       <div class="search-wrap">
-        <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
+        <div class="search-input-wrap">
+          <span class="search-icon" data-icon="search" data-icon-size="15" data-icon-only="true"></span>
+          <input type="text" class="search-input" id="searchInput" placeholder="Search by store or item…" oninput="renderLibrary()">
+        </div>
         <div class="filter-wrap">
           <select id="sortSelect" class="filter-select" onchange="renderLibrary()">
             <option value="newest">Newest first</option>
@@ -481,32 +489,32 @@
             <option value="Other">Other</option>
           </select>
         </div>
-        <button class="business-filter-btn" id="businessFilterBtn" onclick="toggleBusinessFilter()">💼 Business expenses only</button>
+        <button class="business-filter-btn" id="businessFilterBtn" data-icon="briefcase" onclick="toggleBusinessFilter()">Business expenses only</button>
       </div>
       <div class="list-label">My receipts</div>
       <div class="list" id="libraryList"></div>
       <div class="fab-group">
-        <button class="fab" onclick="handleFreeScan()">📷 Scan a receipt</button>
-        <button class="manual-link" onclick="handleManualEntry()">📝 Add a receipt manually</button>
+        <button class="fab" data-icon="camera" onclick="handleFreeScan()">Scan a receipt</button>
+        <button class="manual-link" data-icon="edit" onclick="handleManualEntry()">Add a receipt manually</button>
       </div>
     </div>
 
     <!-- BUDGETS TAB -->
     <div class="tab-panel" id="budgetsTabPanel">
-      <div class="tab-header-bar"><div class="tab-header-title">🎯 Category Budgets</div></div>
+      <div class="tab-header-bar"><div class="tab-header-title" data-icon="target" data-icon-size="18">Category Budgets</div></div>
       <div class="summary-wrap" id="budgetsContent"></div>
     </div>
 
     <!-- SUMMARY TAB -->
     <div class="tab-panel" id="summaryTabPanel">
-      <div class="tab-header-bar"><div class="tab-header-title">📊 Spending Summary</div></div>
+      <div class="tab-header-bar"><div class="tab-header-title" data-icon="barChart" data-icon-size="18">Spending Summary</div></div>
       <div class="summary-wrap" id="summaryContent"></div>
       <div class="backup-bar">
         <div class="backup-bar-row">
-          <button class="backup-btn" onclick="exportReceipts()">⬇️ Backup (.json)</button>
-          <button class="backup-btn" onclick="exportReceiptsCSV()">📄 Spreadsheet (.csv)</button>
+          <button class="backup-btn" data-icon="download" onclick="exportReceipts()">Backup (.json)</button>
+          <button class="backup-btn" data-icon="fileText" onclick="exportReceiptsCSV()">Spreadsheet (.csv)</button>
         </div>
-        <button class="backup-btn" onclick="document.getElementById('importInput').click()">⬆️ Import backup</button>
+        <button class="backup-btn" data-icon="upload" onclick="document.getElementById('importInput').click()">Import backup</button>
         <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importReceiptsFile(event)">
       </div>
     </div>
@@ -514,13 +522,13 @@
     <!-- BOTTOM TAB BAR -->
     <div class="tab-bar">
       <button class="tab-bar-btn" id="tabBtn-budgets" onclick="switchTab('budgets')">
-        <span class="tab-bar-icon">🎯</span><span>Budgets</span>
+        <span class="tab-bar-icon" data-icon="target" data-icon-size="19" data-icon-only="true"></span><span>Budgets</span>
       </button>
       <button class="tab-bar-btn active" id="tabBtn-home" onclick="switchTab('home')">
-        <span class="tab-bar-icon">🧾</span><span>My Receipts</span>
+        <span class="tab-bar-icon" data-icon="receipt" data-icon-size="19" data-icon-only="true"></span><span>My Receipts</span>
       </button>
       <button class="tab-bar-btn" id="tabBtn-summary" onclick="switchTab('summary')">
-        <span class="tab-bar-icon">📊</span><span>Summary</span>
+        <span class="tab-bar-icon" data-icon="barChart" data-icon-size="19" data-icon-only="true"></span><span>Summary</span>
       </button>
     </div>
 
@@ -541,14 +549,14 @@
         <div class="scan-status" id="scanStatus">Take a photo of a real receipt</div>
 
         <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(event)">
-        <button class="scan-btn" id="scanBtn" onclick="document.getElementById('fileInput').click()">📷 Take or upload photo</button>
+        <button class="scan-btn" id="scanBtn" data-icon="camera" onclick="document.getElementById('fileInput').click()">Take or upload photo</button>
         <div class="hint" id="hintText">Free, on-device OCR — runs right in your browser, no server, no cost.</div>
 
         <div class="parse-list" id="parseList"></div>
-        <div class="match-seal" id="matchSeal">✓ Receipt parsed</div>
+        <div class="match-seal" id="matchSeal" data-icon="check">Receipt parsed</div>
         <div class="post-scan-actions" id="postScanActions" style="display:none">
-          <button class="scan-btn secondary" onclick="handleRescan()">🔄 Rescan</button>
-          <button class="scan-btn" onclick="showParsedReceipt()">✅ Done</button>
+          <button class="scan-btn secondary" data-icon="refresh" onclick="handleRescan()">Rescan</button>
+          <button class="scan-btn" data-icon="check" onclick="showParsedReceipt()">Done</button>
         </div>
       </div>
     </div>
@@ -565,8 +573,8 @@
       </div>
       <div class="done-bar">
         <div class="done-bar-row">
-          <button class="scan-btn secondary" onclick="shareReceipt()">🔗 Share</button>
-          <button class="scan-btn" onclick="goToMainScreen()">✅ Done</button>
+          <button class="scan-btn secondary" data-icon="link" onclick="shareReceipt()">Share</button>
+          <button class="scan-btn" data-icon="check" onclick="goToMainScreen()">Done</button>
         </div>
       </div>
     </div>
@@ -581,68 +589,68 @@
       <div class="helper-suggestions" id="helperSuggestions"></div>
       <div class="helper-input-row">
         <input type="text" class="helper-input" id="helperInput" placeholder="Ask a question…" onkeydown="if(event.key==='Enter') sendHelperMessage()">
-        <button class="helper-send-btn" onclick="sendHelperMessage()">➤</button>
+        <button class="helper-send-btn" data-icon="send" data-icon-size="15" data-icon-only="true" onclick="sendHelperMessage()"></button>
       </div>
     </div>
 
     <!-- FIRST-TIME WALKTHROUGH -->
     <div class="subscreen" id="walkthroughScreen">
-      <button class="walkthrough-close" onclick="dismissWalkthrough()" title="Close">✕</button>
+      <button class="walkthrough-close" data-icon="x" data-icon-size="14" data-icon-only="true" onclick="dismissWalkthrough()" title="Close"></button>
       <div class="walkthrough-body">
-        <div class="walkthrough-title">✓ How Stub works</div>
+        <div class="walkthrough-title" data-icon="check" data-icon-size="20">How Stub works</div>
         <div class="walkthrough-sub">Your bank statement shows the total. Stub shows what you actually bought.</div>
 
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">📷</div>
+          <div class="walkthrough-icon" data-icon="camera" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Scan, upload, or add manually</div>
             <div class="walkthrough-item-text">Take a photo or pick one from your library — it reads items and prices right on your phone. No photo? Add one by hand instead.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">✏️</div>
+          <div class="walkthrough-icon" data-icon="edit" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Fix anything it gets wrong</div>
             <div class="walkthrough-item-text">Store name, items, prices, categories, notes — everything's editable, right on the receipt.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">🔍</div>
+          <div class="walkthrough-icon" data-icon="search" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Search, sort & filter</div>
             <div class="walkthrough-item-text">Find receipts by store or item, sort by date or amount, filter to one category, or just business expenses.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">📊</div>
+          <div class="walkthrough-icon" data-icon="barChart" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">See where your money goes</div>
             <div class="walkthrough-item-text">Summary breaks spending down by category and by month, with charts, updated automatically as you add receipts.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">🎯</div>
+          <div class="walkthrough-icon" data-icon="target" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Set category budgets</div>
             <div class="walkthrough-item-text">Give any category a monthly target and track it against what you've actually spent.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">📅</div>
+          <div class="walkthrough-icon" data-icon="calendar" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Track return windows</div>
             <div class="walkthrough-item-text">Set a return-by date on anything, and see what's still returnable before the deadline passes.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">💼</div>
+          <div class="walkthrough-icon" data-icon="briefcase" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Tag business expenses</div>
             <div class="walkthrough-item-text">Flag purchases as business expenses, filter to just those, and they're broken out in your CSV export.</div>
           </div>
         </div>
         <div class="walkthrough-item">
-          <div class="walkthrough-icon">🔗</div>
+          <div class="walkthrough-icon" data-icon="link" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Share or back up</div>
             <div class="walkthrough-item-text">Share any single receipt from your phone, or export everything as a backup (.json) or spreadsheet (.csv).</div>
@@ -662,6 +670,37 @@
 // chat reply, so the helper reads as one consistent little character
 // rather than a generic emoji. Uses currentColor so it inherits whatever
 // text color the surrounding button/bubble already has.
+// A single consistent icon system (same stroke width, same grid, same
+// style throughout) — replaces scattered emoji, which render differently
+// per device/OS and read as informal. Every icon uses currentColor so it
+// automatically matches whatever text color it's placed in.
+function icon(name, size = 16){
+  const paths = {
+    camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+    edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+    check: '<polyline points="20 6 9 17 4 12"/>',
+    refresh: '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+    link: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+    barChart: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+    receipt: '<path d="M6 2h12v18l-3-2-3 2-3-2-3 2Z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/>',
+    briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+    fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>',
+    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    hardDrive: '<line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/>',
+    x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+    trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'
+  };
+  const strokeW = (name === 'check' || name === 'x') ? 2.5 : 2;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">${paths[name] || ''}</svg>`;
+}
+
 const BOT_ICON_SVG = `
 <svg class="bot-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
   <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -900,7 +939,7 @@ function getStorageUsageMB(){
 }
 function updateStorageIndicator(){
   const el = document.getElementById('storageIndicator');
-  if(el) el.textContent = `💾 ${getStorageUsageMB()} MB used`;
+  if(el) el.innerHTML = `${icon('hardDrive', 11)} ${getStorageUsageMB()} MB used`;
 }
 
 function renderLibrary(){
@@ -933,11 +972,11 @@ function renderLibrary(){
   list.innerHTML = '';
 
   if(receipts.length === 0){
-    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧾</div>No receipts yet.<br>Tap "Scan a receipt" below to add your first one.</div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${icon('receipt', 32)}</div>No receipts yet.<br>Tap "Scan a receipt" below to add your first one.</div>`;
     return;
   }
   if(filtered.length === 0){
-    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div>Nothing matches${query.trim() ? ` "${query}"` : ''}${categoryValue ? ` in ${categoryValue}` : ''}.</div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${icon('search', 32)}</div>Nothing matches${query.trim() ? ` "${query}"` : ''}${categoryValue ? ` in ${categoryValue}` : ''}.</div>`;
     return;
   }
 
@@ -977,7 +1016,7 @@ function getReturnBadgeHTML(r){
           <div class="rcpt-name">${r.brand || 'Receipt'}</div>
           <div class="rcpt-meta">${r.date || ''}</div>
           ${getReturnBadgeHTML(r)}
-          ${r.notes ? `<div class="rcpt-note-tag">${r.isBusiness ? '💼 ' : ''}${r.notes}</div>` : (r.isBusiness ? `<div class="rcpt-note-tag">💼 Business</div>` : '')}
+          ${r.notes ? `<div class="rcpt-note-tag">${r.isBusiness ? icon('briefcase',10)+' ' : ''}${r.notes}</div>` : (r.isBusiness ? `<div class="rcpt-note-tag">${icon('briefcase',10)} Business</div>` : '')}
         </div>
       </div>
       <div class="rcpt-right">
@@ -990,6 +1029,16 @@ function getReturnBadgeHTML(r){
 }
 renderLibrary();
 document.getElementById('helperBtn').innerHTML = BOT_ICON_SVG + ' Help';
+
+// One-time pass: replace every [data-icon] placeholder with its real SVG.
+// data-icon-only="true" replaces the whole element's content; otherwise
+// the icon is prepended before whatever text was already there.
+document.querySelectorAll('[data-icon]').forEach(el => {
+  const name = el.dataset.icon;
+  const size = parseInt(el.dataset.iconSize) || 16;
+  const iconHtml = icon(name, size);
+  el.innerHTML = el.dataset.iconOnly === 'true' ? iconHtml : `${iconHtml} ${el.textContent}`;
+});
 
 // ---------- first-time walkthrough ----------
 const WALKTHROUGH_SEEN_KEY = 'stub_seen_walkthrough';
@@ -1007,9 +1056,9 @@ function dismissWalkthrough(){
 // highest-scoring entry above zero wins.
 const HELPER_KB = [
   { keywords: ['scan', 'photo', 'camera', 'take picture', 'upload'],
-    answer: 'Tap "📷 Scan a receipt" on the My Receipts tab, then "Take or upload photo." You can take a new photo or pick one from your library — it reads the items and prices automatically, right on your phone.' },
+    answer: 'Tap "Scan a receipt" on the My Receipts tab, then "Take or upload photo." You can take a new photo or pick one from your library — it reads the items and prices automatically, right on your phone.' },
   { keywords: ['manual', 'manually', 'no photo', 'without photo', 'by hand'],
-    answer: 'Tap "📝 Add a receipt manually" right below the scan button. It opens a blank receipt you can fill in by hand — the same editable screen as a scanned one.' },
+    answer: 'Tap "Add a receipt manually" right below the scan button. It opens a blank receipt you can fill in by hand — the same editable screen as a scanned one.' },
   { keywords: ['edit', 'wrong', 'fix', 'mistake', 'incorrect', 'change item', 'change price'],
     answer: "Everything on a receipt is editable — tap the store name, any item's name or price, the category dropdown, tax, or notes. Subtotal and total recalculate automatically as you edit items." },
   { keywords: ['category', 'categories', 'categorize'],
@@ -1021,21 +1070,21 @@ const HELPER_KB = [
   { keywords: ['filter'],
     answer: 'Use the "All categories" dropdown to narrow to one category, or tap "Business expenses only" to show just receipts tagged as business.' },
   { keywords: ['business', 'expense', 'tax deduction', 'work purchase'],
-    answer: 'Open any receipt and check the "💼 Business expense" box. You can filter to just those, and they\'re marked in your CSV export too.' },
+    answer: 'Open any receipt and check the "Business expense" box. You can filter to just those, and they\'re marked in your CSV export too.' },
   { keywords: ['budget', 'budgets', 'spending limit', 'target'],
-    answer: "The 🎯 Budgets tab lets you set a monthly dollar target per category. It shows what you've actually spent this month against that target, with a progress bar that turns amber then red as you approach or go over." },
+    answer: "The Budgets tab lets you set a monthly dollar target per category. It shows what you've actually spent this month against that target, with a progress bar that turns amber then red as you approach or go over." },
   { keywords: ['summary', 'chart', 'graph', 'spending breakdown', 'how much'],
-    answer: "The 📊 Summary tab shows this month's total, a category breakdown with a chart, a monthly spending chart, your top stores, and anything with an active return window — updated automatically as you add receipts." },
+    answer: "The Summary tab shows this month's total, a category breakdown with a chart, a monthly spending chart, your top stores, and anything with an active return window — updated automatically as you add receipts." },
   { keywords: ['return', 'return by', 'return window', 'refund', 'return date'],
     answer: 'On any receipt, use the "Return by" dropdown to set a window (7/14/30/60/90 days, or a custom date). It shows a colored badge in your list and appears under "Returnable soon" in Summary until it expires.' },
   { keywords: ['backup', 'back up', 'export', 'json', 'save my data', 'lose my data'],
-    answer: 'Go to the Summary tab and tap "⬇️ Backup (.json)" — it downloads every receipt. Do this occasionally, since everything is only stored on this device.' },
+    answer: 'Go to the Summary tab and tap "Backup (.json)" — it downloads every receipt. Do this occasionally, since everything is only stored on this device.' },
   { keywords: ['csv', 'spreadsheet', 'excel', 'sheets'],
-    answer: 'In the Summary tab, tap "📄 Spreadsheet (.csv)" — downloads a CSV with one row per item, ready to open in Excel or Google Sheets.' },
+    answer: 'In the Summary tab, tap "Spreadsheet (.csv)" — downloads a CSV with one row per item, ready to open in Excel or Google Sheets.' },
   { keywords: ['import', 'restore', 'new phone', 'reinstall'],
-    answer: 'In the Summary tab, tap "⬆️ Import backup" and choose your .json file. It merges in safely — importing the same file twice won\'t create duplicates.' },
+    answer: 'In the Summary tab, tap "Import backup" and choose your .json file. It merges in safely — importing the same file twice won\'t create duplicates.' },
   { keywords: ['share'],
-    answer: 'Open any receipt and tap "🔗 Share" — opens your phone\'s normal share sheet, or copies the receipt as text if sharing isn\'t supported.' },
+    answer: 'Open any receipt and tap "Share" — opens your phone\'s normal share sheet, or copies the receipt as text if sharing isn\'t supported.' },
   { keywords: ['delete', 'remove receipt'],
     answer: 'Open the receipt and tap "Delete" in the top right. It\'ll ask you to confirm first, since it can\'t be undone.' },
   { keywords: ['private', 'privacy', 'stored', 'safe', 'where is my data'],
@@ -1043,7 +1092,7 @@ const HELPER_KB = [
   { keywords: ['accurate', 'accuracy', 'wrong reading', "doesn't work", 'bad scan', 'blurry'],
     answer: "It uses free, on-device OCR, which works best on flat, well-lit, non-thermal receipts. It won't be perfect — that's exactly why every field is editable by hand." },
   { keywords: ['storage', 'space', 'full', 'megabyte'],
-    answer: 'Check the "💾 X.XX MB used" indicator on My Receipts. Photos take up the most space — if you\'re close to your device\'s limit, export a backup and delete a few old receipts.' },
+    answer: 'Check the "X.XX MB used" indicator on My Receipts. Photos take up the most space — if you\'re close to your device\'s limit, export a backup and delete a few old receipts.' },
   { keywords: ['duplicate', 'scanned twice', 'already added'],
     answer: 'It checks for a likely duplicate (same store, same total, within a few days) before saving, and asks you to confirm before adding it again.' }
 ];
@@ -1123,7 +1172,7 @@ function renderSummary(){
   const el = document.getElementById('summaryContent');
 
   if(receipts.length === 0){
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div>No receipts yet — your spending summary will show up here once you've scanned a few.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${icon('barChart', 32)}</div>No receipts yet — your spending summary will show up here once you've scanned a few.</div>`;
     return;
   }
 
@@ -1443,7 +1492,7 @@ function resetScanScreen(){
   document.getElementById('scanStatus').textContent = 'Take a photo of a real receipt';
   document.getElementById('scanBtn').style.display = 'flex';
   document.getElementById('scanBtn').disabled = false;
-  document.getElementById('scanBtn').textContent = '📷 Take or upload photo';
+  document.getElementById('scanBtn').innerHTML = icon('camera') + ' Take or upload photo';
   document.getElementById('parseList').style.display = 'none';
   document.getElementById('parseList').innerHTML = '';
   document.getElementById('matchSeal').style.display = 'none';
@@ -1624,7 +1673,7 @@ async function handleFile(event){
 
     setTimeout(() => {
       const seal = document.getElementById('matchSeal');
-      seal.textContent = '✓ Receipt parsed';
+      seal.innerHTML = icon('check') + ' Receipt parsed';
       seal.style.display = 'flex';
       document.getElementById('postScanActions').style.display = 'flex';
 
@@ -1645,7 +1694,7 @@ async function handleFile(event){
     frame.classList.remove('scanning');
     status.textContent = "Couldn't read that receipt — try a clearer photo.";
     btn.style.display = 'flex';
-    btn.textContent = '📷 Try again';
+    btn.innerHTML = icon('camera') + ' Try again';
     console.error(err);
   }
 }
@@ -1714,7 +1763,7 @@ function showParsedReceipt(isNew = true){
     <input type="text" class="notes-input" placeholder="Add a note (e.g. business expense, gift)" value="${r.notes || ''}" oninput="updateReceiptField('notes', this.value)">
     <label class="business-checkbox">
       <input type="checkbox" ${r.isBusiness ? 'checked' : ''} onchange="updateReceiptField('isBusiness', this.checked); renderLibrary();">
-      💼 Business expense
+      ${icon('briefcase', 13)} Business expense
     </label>
     <div class="r-divider"></div>
     ${r.items.map((it, i) => `
@@ -1722,7 +1771,7 @@ function showParsedReceipt(isNew = true){
         <input class="r-item-name" value="${it.name}" oninput="updateItemField(${i}, 'name', this.value)">
         <span>$</span>
         <input class="r-item-price" value="${it.price}" oninput="updateItemField(${i}, 'price', this.value)">
-        <button class="r-item-del" onclick="removeItem(${i})" title="Remove item">×</button>
+        <button class="r-item-del" onclick="removeItem(${i})" title="Remove item">${icon('x', 13)}</button>
       </div>
       <div class="r-item-cat-row">
         <select class="r-item-cat" onchange="updateItemField(${i}, 'category', this.value)">
@@ -1730,15 +1779,15 @@ function showParsedReceipt(isNew = true){
         </select>
       </div>
     `).join('')}
-    <button class="add-item-btn" onclick="addItem()">+ Add item</button>
+    <button class="add-item-btn" data-icon="plus" onclick="addItem()">Add item</button>
     <div class="r-divider"></div>
     <div class="r-row"><span>Subtotal</span><span>$<input class="r-total-input" id="subtotalInput" value="${r.subtotal}" readonly title="Calculated automatically from items above"></span></div>
     <div class="r-row"><span>Tax</span><span>$<input class="r-total-input" id="taxInput" value="${r.tax}" oninput="updateReceiptField('tax', this.value)"></span></div>
     <div class="r-total"><span>Total</span><span>$<input class="r-total-input big" id="totalInput" value="${r.total}" readonly title="Calculated automatically"></span></div>
-    <div class="stamp-box">✓ SAVED</div>
+    <div class="stamp-box" data-icon="check">SAVED</div>
     <div class="r-foot">SCANNED VIA STUB OCR</div>
     ${r.photo ? `
-      <button class="view-photo-btn" onclick="togglePhoto()">📷 View original photo</button>
+      <button class="view-photo-btn" data-icon="image" onclick="togglePhoto()">View original photo</button>
       <img class="original-photo" id="originalPhoto" src="${r.photo}" style="display:none">
     ` : ''}
   `;
