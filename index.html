@@ -13,6 +13,8 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -378,19 +380,43 @@
   }
   .chart-wrap{ height:180px; margin-bottom:8px; position:relative; }
   .bot-toast{
-    position:absolute; left:16px; right:16px; bottom:82px; z-index:30;
-    background:var(--card-bg); border:1.5px solid var(--line-strong); border-radius:14px;
-    padding:12px 14px; display:flex; align-items:flex-start; gap:10px;
-    box-shadow:0 6px 20px rgba(26,29,27,.18);
-    transform:translateY(120%); opacity:0; transition:transform .3s ease, opacity .3s ease;
+    position:absolute; left:10px; right:10px; top:calc(env(safe-area-inset-top,0px) + 10px); z-index:50;
+    background:rgba(255,255,255,.97); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-radius:16px; padding:11px 12px; display:flex; align-items:flex-start; gap:10px;
+    box-shadow:0 10px 30px rgba(26,29,27,.28), 0 0 0 1px rgba(26,29,27,.05);
+    transform:translateY(-150%); opacity:0;
+    transition:transform .4s cubic-bezier(.34,1.56,.64,1), opacity .25s ease;
     pointer-events:none;
   }
   .bot-toast.show{ transform:translateY(0); opacity:1; pointer-events:auto; }
-  .bot-toast-avatar{ color:var(--verify); flex-shrink:0; margin-top:1px; }
-  .bot-toast-text{ flex:1; font-size:12.5px; color:var(--ink); line-height:1.5; }
-  .bot-toast-close{
-    background:none; border:none; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px;
+  .bot-toast-avatar{
+    flex-shrink:0; width:30px; height:30px; border-radius:9px; background:var(--verify); color:#fff;
+    display:flex; align-items:center; justify-content:center; margin-top:1px;
   }
+  .bot-toast-body{ flex:1; min-width:0; }
+  .bot-toast-title{ font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:1px; }
+  .bot-toast-text{ font-size:12.5px; color:var(--ink); line-height:1.4; }
+  .bot-toast-close{
+    background:none; border:none; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px; margin-top:2px;
+  }
+
+  .gmail-import-body{ flex:1; overflow-y:auto; padding:26px 22px; background:var(--bg-recessed); }
+  .gmail-import-intro{ text-align:center; padding:30px 10px; }
+  .gmail-import-icon{ display:flex; justify-content:center; color:var(--verify); margin-bottom:14px; }
+  .gmail-import-intro p{ font-size:13px; color:var(--text-muted); line-height:1.6; margin-bottom:20px; max-width:280px; margin-left:auto; margin-right:auto; }
+  .gmail-candidate-list{
+    background:var(--card-bg); border-radius:16px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(26,29,27,.07); border:1px solid rgba(26,29,27,.05);
+  }
+  .gmail-candidate-row{
+    display:flex; align-items:center; gap:10px; padding:12px 14px;
+    border-bottom:1px solid rgba(26,29,27,.07); cursor:pointer;
+  }
+  .gmail-candidate-row:last-child{ border-bottom:none; }
+  .gmail-candidate-info{ flex:1; min-width:0; }
+  .gmail-candidate-brand{ font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gmail-candidate-meta{ font-size:11px; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gmail-candidate-total{ font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; color:var(--ink); flex-shrink:0; }
 
   .helper-chat{
     flex:1; overflow-y:auto; padding:18px 18px 8px; display:flex; flex-direction:column; gap:10px;
@@ -518,6 +544,7 @@
       <div class="fab-group">
         <button class="fab" data-icon="camera" onclick="handleFreeScan()">Scan a receipt</button>
         <button class="manual-link" data-icon="edit" onclick="handleManualEntry()">Add a receipt manually</button>
+        <button class="manual-link" data-icon="mail" onclick="openGmailImport()">Import from Gmail</button>
       </div>
     </div>
 
@@ -552,6 +579,15 @@
       <button class="tab-bar-btn" id="tabBtn-summary" onclick="switchTab('summary')">
         <span class="tab-bar-icon" data-icon="barChart" data-icon-size="19" data-icon-only="true"></span><span>Summary</span>
       </button>
+    </div>
+
+    <!-- GMAIL IMPORT SUBSCREEN -->
+    <div class="subscreen" id="gmailImportScreen">
+      <div class="subbar">
+        <button class="back" onclick="closeSub('gmailImportScreen')">←</button>
+        <div class="title">Import from Gmail</div>
+      </div>
+      <div class="gmail-import-body" id="gmailImportBody"></div>
     </div>
 
     <!-- SCAN SUBSCREEN -->
@@ -604,7 +640,10 @@
     <!-- BOT BUDGET REMINDER TOAST -->
     <div class="bot-toast" id="botToast">
       <span class="bot-toast-avatar" id="botToastAvatar"></span>
-      <div class="bot-toast-text" id="botToastText"></div>
+      <div class="bot-toast-body">
+        <div class="bot-toast-title">Stub</div>
+        <div class="bot-toast-text" id="botToastText"></div>
+      </div>
       <button class="bot-toast-close" data-icon="x" data-icon-size="12" data-icon-only="true" onclick="hideBotToast()"></button>
     </div>
 
@@ -627,8 +666,15 @@
       <button class="walkthrough-close" data-icon="x" data-icon-size="14" data-icon-only="true" onclick="dismissWalkthrough()" title="Close"></button>
       <div class="walkthrough-body">
         <div class="walkthrough-title" data-icon="check" data-icon-size="20">How Stub works</div>
-        <div class="walkthrough-sub">Your bank statement shows the total. Stub shows what you actually bought.</div>
+        <div class="walkthrough-sub">Your bank statement shows the total. Stub shows what you actually bought — and everything stays only on this device.</div>
 
+        <div class="walkthrough-item">
+          <div class="walkthrough-icon" data-icon="receipt" data-icon-size="22" data-icon-only="true"></div>
+          <div>
+            <div class="walkthrough-item-title">Three tabs, one app</div>
+            <div class="walkthrough-item-text">My Receipts is home. Budgets and Summary sit next to it at the bottom — tap between them anytime, no back button needed.</div>
+          </div>
+        </div>
         <div class="walkthrough-item">
           <div class="walkthrough-icon" data-icon="camera" data-icon-size="22" data-icon-only="true"></div>
           <div>
@@ -640,7 +686,7 @@
           <div class="walkthrough-icon" data-icon="edit" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Fix anything it gets wrong</div>
-            <div class="walkthrough-item-text">Store name, items, prices, categories, notes — everything's editable, right on the receipt.</div>
+            <div class="walkthrough-item-text">Store name, items, prices, categories, notes — everything's editable, right on the receipt. It'll also flag a likely duplicate before saving one twice.</div>
           </div>
         </div>
         <div class="walkthrough-item">
@@ -660,8 +706,8 @@
         <div class="walkthrough-item">
           <div class="walkthrough-icon" data-icon="target" data-icon-size="22" data-icon-only="true"></div>
           <div>
-            <div class="walkthrough-item-title">Set category budgets</div>
-            <div class="walkthrough-item-text">Give any category a monthly target and track it against what you've actually spent.</div>
+            <div class="walkthrough-item-title">Set budgets & get notified</div>
+            <div class="walkthrough-item-text">Give any category a monthly target. From your very first receipt in it, a notification keeps you posted on what's left — every time you add to it or change the target.</div>
           </div>
         </div>
         <div class="walkthrough-item">
@@ -679,10 +725,17 @@
           </div>
         </div>
         <div class="walkthrough-item">
+          <div class="walkthrough-icon" id="walkthroughBotIcon" style="color:var(--verify);"></div>
+          <div>
+            <div class="walkthrough-item-title">Ask the Help assistant</div>
+            <div class="walkthrough-item-text">Tap "Help" up top anytime and ask how something works — it's a free built-in FAQ, not a live AI, so it answers from a fixed set of topics about the app itself.</div>
+          </div>
+        </div>
+        <div class="walkthrough-item">
           <div class="walkthrough-icon" data-icon="link" data-icon-size="22" data-icon-only="true"></div>
           <div>
             <div class="walkthrough-item-title">Share or back up</div>
-            <div class="walkthrough-item-text">Share any single receipt from your phone, or export everything as a backup (.json) or spreadsheet (.csv).</div>
+            <div class="walkthrough-item-text">Share any single receipt from your phone, or export everything as a backup (.json) or spreadsheet (.csv) — worth doing occasionally, since nothing is stored anywhere but this device.</div>
           </div>
         </div>
 
@@ -724,10 +777,45 @@ function icon(name, size = 16){
     plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
-    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'
+    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+    mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/>'
   };
   const strokeW = (name === 'check' || name === 'x') ? 2.5 : 2;
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">${paths[name] || ''}</svg>`;
+}
+
+// ---------- Gmail import ----------
+const GMAIL_CLIENT_ID = '292019502668-o8et9ki2psn94t42fps45uhmkj1a4qop.apps.googleusercontent.com';
+const GMAIL_API_KEY = 'AIzaSyA-DWZ2YwNwcfDzZtKGQwKnjfykpzZI_5o';
+const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+
+let gapiInited = false;
+let gisInited = false;
+let gmailTokenClient = null;
+let gmailAccessToken = null;
+let gmailCandidates = [];
+
+function gapiLoaded(){
+  gapi.load('client', async () => {
+    try{
+      await gapi.client.init({
+        apiKey: GMAIL_API_KEY,
+        discoveryDocs: ['https://gmail.googleapis.com/$discovery/rest?version=v1']
+      });
+      gapiInited = true;
+    } catch(err){
+      console.error('Gmail API client failed to initialize:', err);
+    }
+  });
+}
+
+function gisLoaded(){
+  gmailTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GMAIL_CLIENT_ID,
+    scope: GMAIL_SCOPES,
+    callback: ''
+  });
+  gisInited = true;
 }
 
 const BOT_ICON_SVG = `
@@ -756,6 +844,7 @@ function updateBudget(category, value){
   budgets[category] = value;
   saveBudgets(budgets);
   renderBudgetsScreen();
+  alertCategoryStatus(category);
 }
 
 function loadReceipts(){
@@ -1058,7 +1147,7 @@ function getReturnBadgeHTML(r){
 }
 renderLibrary();
 document.getElementById('helperBtn').innerHTML = BOT_ICON_SVG + ' Help';
-setTimeout(checkBudgetAlerts, 1200);
+document.getElementById('walkthroughBotIcon').innerHTML = BOT_ICON_SVG;
 
 // One-time pass: replace every [data-icon] placeholder with its real SVG.
 // data-icon-only="true" replaces the whole element's content; otherwise
@@ -1192,65 +1281,71 @@ function sendHelperMessage(presetText){
 }
 
 // ---------- proactive budget reminders ----------
-// Alerted categories are tracked only for this session (resets on reload)
-// so the same reminder doesn't nag every single time you switch tabs —
-// but a fresh visit will re-check and remind you again if still relevant.
-const budgetAlertsShownThisSession = new Set();
+// Alerts now fire in real time: the very first receipt added to a
+// budgeted category triggers a reminder, and every receipt added after
+// that keeps updating you on what's left — no waiting for a percentage
+// threshold. A budget amount change also alerts immediately with the
+// new remaining total. Multiple alerts (e.g. one receipt touching two
+// budgeted categories) queue and show one at a time rather than stacking.
+let botToastQueue = [];
 let botToastTimer = null;
 
-function showBotToast(text){
+function queueBotToast(text){
+  botToastQueue.push(text);
+  if(botToastQueue.length === 1) showNextBotToast();
+}
+
+function showNextBotToast(){
+  if(botToastQueue.length === 0) return;
   const toast = document.getElementById('botToast');
   document.getElementById('botToastAvatar').innerHTML = BOT_ICON_SVG;
-  document.getElementById('botToastText').textContent = text;
+  document.getElementById('botToastText').textContent = botToastQueue[0];
   toast.classList.add('show');
   clearTimeout(botToastTimer);
-  botToastTimer = setTimeout(hideBotToast, 6000);
+  botToastTimer = setTimeout(hideBotToast, 4500);
 }
 
 function hideBotToast(){
   document.getElementById('botToast').classList.remove('show');
   clearTimeout(botToastTimer);
+  botToastQueue.shift();
+  if(botToastQueue.length > 0) setTimeout(showNextBotToast, 400);
 }
 
-// Checks every category's spend-vs-budget for the current month and
-// surfaces a reminder for the single most urgent one still worth
-// mentioning (over budget, or within 20% of the limit).
-function checkBudgetAlerts(){
-  const budgets = loadBudgets();
+function spentInCategoryThisMonth(category){
   const receipts = loadReceipts();
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-
-  const spentByCategory = {};
+  let spent = 0;
   receipts.forEach(r => {
     const d = new Date(r.savedAt || Date.now());
     const monthKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     if(monthKey !== currentMonthKey) return;
     (r.items || []).forEach(it => {
-      const cat = it.category || 'Other';
-      spentByCategory[cat] = (spentByCategory[cat] || 0) + (parseFloat(it.price) || 0);
+      if((it.category || 'Other') === category) spent += parseFloat(it.price) || 0;
     });
   });
+  return spent;
+}
 
-  let best = null; // the most urgent category still worth alerting on
-  CATEGORIES.forEach(cat => {
-    const budget = parseFloat(budgets[cat]) || 0;
-    if(budget <= 0) return;
-    const spent = spentByCategory[cat] || 0;
-    const pct = spent / budget;
-    if(pct < 0.8) return; // not close enough to bother mentioning
-    if(budgetAlertsShownThisSession.has(cat)) return;
-    if(!best || pct > best.pct) best = { cat, spent, budget, pct };
-  });
-
-  if(!best) return;
-  budgetAlertsShownThisSession.add(best.cat);
-
-  const remaining = best.budget - best.spent;
+// Alerts on the current state of one category — used both right after
+// a receipt adds spending to it, and right after its budget is edited.
+function alertCategoryStatus(category){
+  const budget = parseFloat(loadBudgets()[category]) || 0;
+  if(budget <= 0) return; // no budget set for this category — nothing to report
+  const spent = spentInCategoryThisMonth(category);
+  const remaining = budget - spent;
   const msg = remaining < 0
-    ? `Heads up — you're $${Math.abs(remaining).toFixed(2)} over your ${best.cat} budget this month.`
-    : `You've used ${Math.round(best.pct*100)}% of your ${best.cat} budget — $${remaining.toFixed(2)} left this month.`;
-  showBotToast(msg);
+    ? `You're now $${Math.abs(remaining).toFixed(2)} over your ${category} budget this month.`
+    : `${category}: $${remaining.toFixed(2)} left of your $${budget.toFixed(2)} budget this month.`;
+  queueBotToast(msg);
+}
+
+// Called right after a receipt is saved — alerts on every distinct
+// budgeted category that receipt touched.
+function alertCategoriesForReceipt(receipt){
+  const categories = new Set((receipt.items || []).map(it => it.category || 'Other'));
+  categories.forEach(alertCategoryStatus);
 }
 
 // ---------- spending summary ----------
@@ -1492,7 +1587,6 @@ function switchTab(name){
   if(name === 'budgets') renderBudgetsScreen();
   if(name === 'summary') renderSummary();
   if(name === 'home') renderLibrary();
-  if(name === 'budgets' || name === 'home') checkBudgetAlerts();
 }
 
 function renderBudgetsScreen(){
@@ -1539,6 +1633,201 @@ function renderBudgetsScreen(){
       `;
     }).join('')}
   `;
+}
+
+// ---------- Gmail import flow ----------
+function openGmailImport(){
+  renderGmailImportScreen();
+  openSub('gmailImportScreen');
+}
+
+function renderGmailImportScreen(){
+  const body = document.getElementById('gmailImportBody');
+
+  if(!gmailAccessToken){
+    body.innerHTML = `
+      <div class="gmail-import-intro">
+        <div class="gmail-import-icon">${icon('mail', 40)}</div>
+        <p>Connect your Gmail to search for receipt and order confirmation emails. Nothing imports automatically — you review and pick which ones to add.</p>
+        <button class="scan-btn" onclick="connectGmail()">Connect Gmail</button>
+      </div>
+    `;
+    return;
+  }
+
+  if(gmailCandidates.length === 0){
+    body.innerHTML = `
+      <div class="gmail-import-intro">
+        <div class="gmail-import-icon">${icon('mail', 40)}</div>
+        <p>Connected. Search your inbox for receipts from the last 90 days.</p>
+        <button class="scan-btn" onclick="searchGmailReceipts()">Search for receipts</button>
+      </div>
+    `;
+    return;
+  }
+
+  const selectedCount = gmailCandidates.filter(c => c.selected).length;
+  body.innerHTML = `
+    <div class="gmail-candidate-list">
+      ${gmailCandidates.map((c, i) => `
+        <label class="gmail-candidate-row">
+          <input type="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleGmailCandidate(${i})">
+          <div class="gmail-candidate-info">
+            <div class="gmail-candidate-brand">${c.parsed.merchant || c.from}</div>
+            <div class="gmail-candidate-meta">${c.subject}${c.date ? ' · ' + c.date : ''}</div>
+          </div>
+          <div class="gmail-candidate-total">${c.parsed.total ? '$' + c.parsed.total : '—'}</div>
+        </label>
+      `).join('')}
+    </div>
+    <button class="scan-btn" style="width:100%; margin-top:14px;" onclick="importSelectedGmailReceipts()" ${selectedCount === 0 ? 'disabled' : ''}>Import selected (${selectedCount})</button>
+    <button class="manual-link" style="width:100%; margin-top:8px;" onclick="searchGmailReceipts()">Search again</button>
+  `;
+}
+
+function connectGmail(){
+  if(!gisInited || !gapiInited){
+    alert("Still loading Google's sign-in library — wait a second and try again.");
+    return;
+  }
+  gmailTokenClient.callback = (resp) => {
+    if(resp.error){
+      alert('Could not connect to Gmail: ' + resp.error);
+      return;
+    }
+    gmailAccessToken = resp.access_token;
+    renderGmailImportScreen();
+    searchGmailReceipts();
+  };
+  gmailTokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function getEmailHeader(headers, name){
+  const h = (headers || []).find(x => x.name.toLowerCase() === name.toLowerCase());
+  return h ? h.value : '';
+}
+
+function decodeBase64Url(data){
+  const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+  try{ return decodeURIComponent(escape(atob(base64))); }
+  catch(e){ return atob(base64); }
+}
+
+// Walks the MIME parts tree (emails nest plain/html/attachments arbitrarily
+// deep) looking for readable body text. Prefers plain text; falls back to
+// stripping tags out of HTML if that's all there is.
+function extractEmailBodyText(payload){
+  let plain = '', html = '';
+  function walk(part){
+    if(!part) return;
+    if(part.mimeType === 'text/plain' && part.body && part.body.data){
+      plain += decodeBase64Url(part.body.data);
+    } else if(part.mimeType === 'text/html' && part.body && part.body.data){
+      html += decodeBase64Url(part.body.data);
+    }
+    (part.parts || []).forEach(walk);
+  }
+  walk(payload);
+
+  if(plain.trim()) return plain;
+  if(html.trim()){
+    return html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '\n')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/\n{3,}/g, '\n\n');
+  }
+  return '';
+}
+
+// Reuses the same heuristic parser built for scanned receipts — email
+// confirmations, once stripped of HTML, tend to have similar "item ...
+// price" line patterns. The sender name (From header) is used as the
+// merchant rather than anything guessed from the body text — for email,
+// the header is far more reliable than a first-line guess (which might
+// just be a greeting line like "Your order has shipped").
+function parseGmailMessage(message){
+  const headers = message.payload.headers || [];
+  const subject = getEmailHeader(headers, 'Subject');
+  const from = getEmailHeader(headers, 'From').replace(/<.*?>/g, '').replace(/"/g, '').trim();
+  const dateHeader = getEmailHeader(headers, 'Date');
+  const bodyText = extractEmailBodyText(message.payload);
+  if(!bodyText) return null;
+
+  const parsed = parseReceiptText(bodyText);
+  if(!parsed.items.length && !parsed.total) return null; // nothing usable in this email
+
+  return {
+    messageId: message.id,
+    subject,
+    from,
+    date: dateHeader ? new Date(dateHeader).toLocaleDateString() : '',
+    parsed: {
+      merchant: from || parsed.merchant,
+      items: parsed.items,
+      subtotal: parsed.subtotal,
+      tax: parsed.tax,
+      total: parsed.total
+    }
+  };
+}
+
+async function searchGmailReceipts(){
+  const body = document.getElementById('gmailImportBody');
+  body.innerHTML = `<div class="gmail-import-intro"><div class="gmail-import-icon">${icon('mail', 40)}</div><p>Searching your inbox…</p></div>`;
+
+  try{
+    const query = 'newer_than:90d (receipt OR "order confirmation" OR "your order" OR invoice OR purchase)';
+    const listResp = await gapi.client.gmail.users.messages.list({ userId: 'me', q: query, maxResults: 20 });
+    const messages = listResp.result.messages || [];
+
+    const candidates = [];
+    for(const m of messages){
+      const msgResp = await gapi.client.gmail.users.messages.get({ userId: 'me', id: m.id, format: 'full' });
+      const parsed = parseGmailMessage(msgResp.result);
+      if(parsed) candidates.push(parsed);
+    }
+
+    gmailCandidates = candidates.map(c => ({ ...c, selected: true }));
+    renderGmailImportScreen();
+  } catch(err){
+    console.error('Gmail search failed:', err);
+    body.innerHTML = `<div class="gmail-import-intro"><p>Something went wrong searching Gmail — your session may have expired.</p><button class="scan-btn" onclick="connectGmail()">Reconnect Gmail</button></div>`;
+  }
+}
+
+function toggleGmailCandidate(i){
+  gmailCandidates[i].selected = !gmailCandidates[i].selected;
+  renderGmailImportScreen();
+}
+
+function importSelectedGmailReceipts(){
+  const selected = gmailCandidates.filter(c => c.selected);
+  let importedCount = 0, skippedCount = 0;
+
+  selected.forEach(c => {
+    const receipt = {
+      brand: (c.parsed.merchant || 'Gmail Receipt').toUpperCase(),
+      addr: c.date,
+      date: c.date,
+      items: c.parsed.items,
+      subtotal: c.parsed.subtotal || '',
+      tax: c.parsed.tax || '',
+      total: c.parsed.total || '',
+      source: 'gmail'
+    };
+    if(findPossibleDuplicate(receipt)){ skippedCount++; return; }
+    const saved = addReceipt(receipt);
+    alertCategoriesForReceipt(saved);
+    importedCount++;
+  });
+
+  gmailCandidates = [];
+  closeSub('gmailImportScreen');
+  renderLibrary();
+  queueBotToast(`Imported ${importedCount} receipt${importedCount === 1 ? '' : 's'} from Gmail.${skippedCount ? ` Skipped ${skippedCount} likely duplicate${skippedCount === 1 ? '' : 's'}.` : ''}`);
 }
 
 // ---------- scan flow ----------
@@ -1677,7 +1966,7 @@ function parseReceiptText(text){
     if(pastTotals) return;
     if(parseFloat(price) === 0) return;
 
-    let name = line.replace(priceRegex, '').replace(/[.\-\s]{2,}$/, '').replace(/[|_]/g, '').trim();
+    let name = line.replace(priceRegex, '').replace(/\s*\$\s*$/, '').replace(/[.\-\s]{2,}$/, '').replace(/[|_]/g, '').trim();
     if(name.length < 2) name = 'Item';
     items.push({ name, price, quantity: 1, category: guessCategory(name) });
   });
@@ -1831,6 +2120,7 @@ function showParsedReceipt(isNew = true){
       if(!proceed) return; // leave them on the scan/manual-entry screen without saving
     }
     activeReceipt = addReceipt(r);
+    alertCategoriesForReceipt(activeReceipt);
   }
 
   const el = document.getElementById('receiptContent');
