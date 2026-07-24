@@ -158,6 +158,30 @@
     flex-shrink:0; padding:10px 22px calc(env(safe-area-inset-bottom,0px) + 10px);
     display:flex; flex-direction:column; gap:8px; background:var(--bg-recessed);
   }
+  .action-sheet-backdrop{
+    position:fixed; inset:0; background:rgba(26,29,27,.4); z-index:60;
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .action-sheet-backdrop.show{ opacity:1; pointer-events:auto; }
+  .action-sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:61;
+    background:var(--card-bg); border-radius:20px 20px 0 0;
+    padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
+    display:flex; flex-direction:column; gap:8px;
+    transform:translateY(100%); transition:transform .3s cubic-bezier(.34,1.2,.64,1);
+    box-shadow:0 -8px 30px rgba(26,29,27,.2);
+  }
+  .action-sheet.show{ transform:translateY(0); }
+  .action-sheet-item{
+    background:var(--paper-dim); border:none; border-radius:12px; padding:14px;
+    display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:var(--ink);
+    font-family:'Space Grotesk',sans-serif; cursor:pointer; text-align:left;
+  }
+  .action-sheet-cancel{
+    background:none; border:none; padding:12px; margin-top:4px;
+    font-size:13.5px; font-weight:600; color:var(--text-muted);
+    font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  }
   .fab{
     background:var(--verify); color:#fff; border:none;
     padding:13px; border-radius:12px; font-size:13.5px; font-weight:600;
@@ -415,6 +439,7 @@
   .gmail-candidate-row:last-child{ border-bottom:none; }
   .gmail-candidate-info{ flex:1; min-width:0; }
   .gmail-candidate-brand{ font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gmail-candidate-photo-tag{ color:var(--verify); vertical-align:-1px; }
   .gmail-candidate-meta{ font-size:11px; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .gmail-candidate-total{ font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; color:var(--ink); flex-shrink:0; }
 
@@ -503,7 +528,6 @@
         <div class="appbar-top">
           <div class="brand"><span class="tick" data-icon="check" data-icon-size="18" data-icon-only="true"></span> Stub</div>
           <div style="display:flex; gap:6px;">
-            <button class="summary-btn" onclick="openSub('walkthroughScreen')" title="How this works">?</button>
             <button class="summary-btn" id="helperBtn" onclick="openHelper()" title="Ask a question">Help</button>
           </div>
         </div>
@@ -542,10 +566,17 @@
       <div class="list-label">My receipts</div>
       <div class="list" id="libraryList"></div>
       <div class="fab-group">
-        <button class="fab" data-icon="camera" onclick="handleFreeScan()">Scan a receipt</button>
-        <button class="manual-link" data-icon="edit" onclick="handleManualEntry()">Add a receipt manually</button>
-        <button class="manual-link" data-icon="mail" onclick="openGmailImport()">Import from Gmail</button>
+        <button class="fab" data-icon="plus" onclick="openAddReceiptSheet()">Add a receipt</button>
       </div>
+    </div>
+
+    <!-- ADD RECEIPT ACTION SHEET -->
+    <div class="action-sheet-backdrop" id="actionSheetBackdrop" onclick="closeAddReceiptSheet()"></div>
+    <div class="action-sheet" id="actionSheet">
+      <button class="action-sheet-item" data-icon="camera" onclick="closeAddReceiptSheet(); handleFreeScan();">Scan a receipt</button>
+      <button class="action-sheet-item" data-icon="edit" onclick="closeAddReceiptSheet(); handleManualEntry();">Add a receipt manually</button>
+      <button class="action-sheet-item" data-icon="mail" onclick="closeAddReceiptSheet(); openGmailImport();">Import from Gmail</button>
+      <button class="action-sheet-cancel" onclick="closeAddReceiptSheet()">Cancel</button>
     </div>
 
     <!-- BUDGETS TAB -->
@@ -1253,7 +1284,8 @@ function addHelperMessage(sender, text){
 function renderHelperSuggestions(){
   const wrap = document.getElementById('helperSuggestions');
   const picks = ['How do I scan a receipt?', 'How do budgets work?', 'Is my data private?', 'How do I back up my data?'];
-  wrap.innerHTML = picks.map(q => `<button class="helper-chip" onclick="sendHelperMessage(this.textContent)">${q}</button>`).join('');
+  wrap.innerHTML = `<button class="helper-chip" onclick="openSub('walkthroughScreen')">Show me the full walkthrough</button>`
+    + picks.map(q => `<button class="helper-chip" onclick="sendHelperMessage(this.textContent)">${q}</button>`).join('');
 }
 
 function openHelper(){
@@ -1276,7 +1308,7 @@ function sendHelperMessage(presetText){
 
   const match = matchHelperQuestion(text);
   setTimeout(() => {
-    addHelperMessage('bot', match ? match.answer : "I'm not sure about that one — try rephrasing, or check the \"?\" walkthrough for a full overview of what Stub can do.");
+    addHelperMessage('bot', match ? match.answer : 'I\'m not sure about that one — try rephrasing, or tap "Show me the full walkthrough" above for a full overview of what Stub can do.');
   }, 300);
 }
 
@@ -1673,7 +1705,7 @@ function renderGmailImportScreen(){
         <label class="gmail-candidate-row">
           <input type="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleGmailCandidate(${i})">
           <div class="gmail-candidate-info">
-            <div class="gmail-candidate-brand">${c.parsed.merchant || c.from}</div>
+            <div class="gmail-candidate-brand">${c.parsed.merchant || c.from}${c.imagePart ? ` <span class="gmail-candidate-photo-tag">${icon('image', 11)}</span>` : ''}</div>
             <div class="gmail-candidate-meta">${c.subject}${c.date ? ' · ' + c.date : ''}</div>
           </div>
           <div class="gmail-candidate-total">${c.parsed.total ? '$' + c.parsed.total : '—'}</div>
@@ -1731,7 +1763,22 @@ function extractEmailBodyText(payload){
 
   if(plain.trim()) return plain;
   if(html.trim()){
-    return html
+    // Flatten each table row's cells onto one line FIRST — otherwise a
+    // row like <tr><td>Wireless Mouse</td><td>$24.99</td></tr> loses the
+    // name-price adjacency the line-based parser depends on once tags
+    // are stripped to newlines, and the name ends up lost entirely.
+    const rowsFlattened = html.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, (match, rowContent) => {
+      const cellText = rowContent
+        .replace(/<\/(td|th)>/gi, '  ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return '\n' + cellText + '\n';
+    });
+
+    return rowsFlattened
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<[^>]+>/g, '\n')
@@ -1748,6 +1795,23 @@ function extractEmailBodyText(payload){
 // merchant rather than anything guessed from the body text — for email,
 // the header is far more reliable than a first-line guess (which might
 // just be a greeting line like "Your order has shipped").
+// Finds the first image part in the message (attached or inline) —
+// doesn't fetch the actual image bytes yet, just locates it, since
+// fetching happens only for receipts actually selected at import time.
+function findEmailImagePart(payload){
+  let found = null;
+  function walk(part){
+    if(found || !part) return;
+    if(part.mimeType && part.mimeType.startsWith('image/') && part.body && (part.body.data || part.body.attachmentId)){
+      found = part;
+      return;
+    }
+    (part.parts || []).forEach(walk);
+  }
+  walk(payload);
+  return found;
+}
+
 function parseGmailMessage(message){
   const headers = message.payload.headers || [];
   const subject = getEmailHeader(headers, 'Subject');
@@ -1764,6 +1828,7 @@ function parseGmailMessage(message){
     subject,
     from,
     date: dateHeader ? new Date(dateHeader).toLocaleDateString() : '',
+    imagePart: findEmailImagePart(message.payload),
     parsed: {
       merchant: from || parsed.merchant,
       items: parsed.items,
@@ -1803,11 +1868,16 @@ function toggleGmailCandidate(i){
   renderGmailImportScreen();
 }
 
-function importSelectedGmailReceipts(){
+async function importSelectedGmailReceipts(){
   const selected = gmailCandidates.filter(c => c.selected);
   let importedCount = 0, skippedCount = 0;
 
-  selected.forEach(c => {
+  // Give the import button an in-progress state, since fetching images
+  // for several receipts one at a time can take a few seconds.
+  const importBtn = document.querySelector('.gmail-import-body .scan-btn');
+  if(importBtn){ importBtn.disabled = true; importBtn.textContent = 'Importing…'; }
+
+  for(const c of selected){
     const receipt = {
       brand: (c.parsed.merchant || 'Gmail Receipt').toUpperCase(),
       addr: c.date,
@@ -1818,11 +1888,17 @@ function importSelectedGmailReceipts(){
       total: c.parsed.total || '',
       source: 'gmail'
     };
-    if(findPossibleDuplicate(receipt)){ skippedCount++; return; }
+    if(findPossibleDuplicate(receipt)){ skippedCount++; continue; }
+
+    if(c.imagePart){
+      const rawDataUrl = await fetchEmailImageAsDataUrl(c.messageId, c.imagePart);
+      if(rawDataUrl) receipt.photo = await compressDataUrl(rawDataUrl);
+    }
+
     const saved = addReceipt(receipt);
     alertCategoriesForReceipt(saved);
     importedCount++;
-  });
+  }
 
   gmailCandidates = [];
   closeSub('gmailImportScreen');
@@ -1852,6 +1928,15 @@ function handleManualEntry(){
 }
 
 function openSub(id){ document.getElementById(id).classList.add('active'); }
+
+function openAddReceiptSheet(){
+  document.getElementById('actionSheetBackdrop').classList.add('show');
+  document.getElementById('actionSheet').classList.add('show');
+}
+function closeAddReceiptSheet(){
+  document.getElementById('actionSheetBackdrop').classList.remove('show');
+  document.getElementById('actionSheet').classList.remove('show');
+}
 function closeSub(id){ document.getElementById(id).classList.remove('active'); }
 function togglePhoto(){
   const img = document.getElementById('originalPhoto');
@@ -2003,6 +2088,47 @@ function compressImage(file, maxWidth = 800, quality = 0.7){
     reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
+}
+
+// Same compression approach as compressImage, but starting from a data
+// URL already in memory (Gmail attachments) instead of a File from disk.
+function compressDataUrl(dataUrl, maxWidth = 800, quality = 0.7){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+// Small inline images arrive already in the message payload; larger
+// attachments require a separate Gmail API call to fetch the actual bytes.
+async function fetchEmailImageAsDataUrl(messageId, part){
+  try{
+    let base64Data;
+    if(part.body.data){
+      base64Data = part.body.data.replace(/-/g, '+').replace(/_/g, '/');
+    } else if(part.body.attachmentId){
+      const attResp = await gapi.client.gmail.users.messages.attachments.get({
+        userId: 'me', messageId, id: part.body.attachmentId
+      });
+      base64Data = attResp.result.data.replace(/-/g, '+').replace(/_/g, '/');
+    } else {
+      return null;
+    }
+    return `data:${part.mimeType};base64,${base64Data}`;
+  } catch(err){
+    console.error('Could not fetch Gmail image attachment:', err);
+    return null;
+  }
 }
 
 async function handleFile(event){
