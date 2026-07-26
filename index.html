@@ -859,6 +859,21 @@ const BOT_ICON_SVG = `
   <circle class="bot-eye" cx="15" cy="12" r="1.6" fill="currentColor"/>
 </svg>`;
 
+// Escapes text before it gets inserted into HTML markup. Without this,
+// an item name containing a quote character (very common in scanned or
+// emailed receipts — "24" Monitor", stray quotes from formatting, etc.)
+// breaks out of an attribute like value="..." and dumps raw HTML/JS as
+// visible garbage text on the page. Every piece of parsed or user-typed
+// text that gets interpolated into a template string needs this.
+function escapeHtml(str){
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const STORAGE_KEY = 'stub_receipts';
 const BUDGETS_KEY = 'stub_budgets';
 
@@ -1160,16 +1175,16 @@ function getReturnBadgeHTML(r){
     const initials = (r.brand || '?').trim().slice(0, 2).toUpperCase();
     row.innerHTML = `
       <div class="rcpt-left">
-        <div class="rcpt-icon">${initials}</div>
+        <div class="rcpt-icon">${escapeHtml(initials)}</div>
         <div>
-          <div class="rcpt-name">${r.brand || 'Receipt'}</div>
-          <div class="rcpt-meta">${r.date || ''}</div>
+          <div class="rcpt-name">${escapeHtml(r.brand || 'Receipt')}</div>
+          <div class="rcpt-meta">${escapeHtml(r.date || '')}</div>
           ${getReturnBadgeHTML(r)}
-          ${r.notes ? `<div class="rcpt-note-tag">${r.isBusiness ? icon('briefcase',10)+' ' : ''}${r.notes}</div>` : (r.isBusiness ? `<div class="rcpt-note-tag">${icon('briefcase',10)} Business</div>` : '')}
+          ${r.notes ? `<div class="rcpt-note-tag">${r.isBusiness ? icon('briefcase',10)+' ' : ''}${escapeHtml(r.notes)}</div>` : (r.isBusiness ? `<div class="rcpt-note-tag">${icon('briefcase',10)} Business</div>` : '')}
         </div>
       </div>
       <div class="rcpt-right">
-        <div class="rcpt-amt">${r.total ? '$'+r.total : ''}</div>
+        <div class="rcpt-amt">${r.total ? '$'+escapeHtml(r.total) : ''}</div>
         <div class="rcpt-chevron">›</div>
       </div>
     `;
@@ -1705,10 +1720,10 @@ function renderGmailImportScreen(){
         <label class="gmail-candidate-row">
           <input type="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleGmailCandidate(${i})">
           <div class="gmail-candidate-info">
-            <div class="gmail-candidate-brand">${c.parsed.merchant || c.from}${c.imagePart ? ` <span class="gmail-candidate-photo-tag">${icon('image', 11)}</span>` : ''}</div>
-            <div class="gmail-candidate-meta">${c.subject}${c.date ? ' · ' + c.date : ''}</div>
+            <div class="gmail-candidate-brand">${escapeHtml(c.parsed.merchant || c.from)}${c.imagePart ? ` <span class="gmail-candidate-photo-tag">${icon('image', 11)}</span>` : ''}</div>
+            <div class="gmail-candidate-meta">${escapeHtml(c.subject)}${c.date ? ' · ' + escapeHtml(c.date) : ''}</div>
           </div>
-          <div class="gmail-candidate-total">${c.parsed.total ? '$' + c.parsed.total : '—'}</div>
+          <div class="gmail-candidate-total">${c.parsed.total ? '$' + escapeHtml(c.parsed.total) : '—'}</div>
         </label>
       `).join('')}
     </div>
@@ -2001,7 +2016,7 @@ const CATEGORY_COLORS = {
 const CATEGORY_KEYWORDS = {
   'Groceries': ['milk','bread','banana','apple','egg','cheese','yogurt','produce','meat','chicken','beef','snack','cereal','juice','water','soda','coffee','tea','vegetable','fruit','rice','pasta','sauce','frozen','bakery','onion','tomato','potato','gyoza'],
   'Clothing': ['shirt','pant','jean','shoe','sock','dress','jacket','coat','hat','glove','sweater','short','legging','underwear'],
-  'Electronics': ['charger','cable','headphone','phone','laptop','monitor','keyboard','mouse','battery','usb','adapter'],
+  'Electronics': ['charger','cable','headphone','phone','laptop','monitor','keyboard','mouse','battery','usb','adapter','camera','tablet','speaker','tv','earbuds'],
   'Health & Beauty': ['shampoo','lotion','soap','toothpaste','deodorant','vitamin','medicine','makeup','sunscreen','razor'],
   'Home': ['towel','sheet','pillow','candle','cleaner','detergent','trash bag','light bulb','furniture','notebook','pen'],
   'Restaurants': ['burger','pizza','taco','sandwich','salad','fries','latte','espresso','combo','croissant'],
@@ -2251,9 +2266,9 @@ function showParsedReceipt(isNew = true){
 
   const el = document.getElementById('receiptContent');
   el.innerHTML = `
-    <input class="r-brand-input" id="brandInput" value="${r.brand}" oninput="updateReceiptField('brand', this.value)" onblur="renderLibrary()">
+    <input class="r-brand-input" id="brandInput" value="${escapeHtml(r.brand)}" oninput="updateReceiptField('brand', this.value)" onblur="renderLibrary()">
     <div style="text-align:center; font-size:9px; color:#A39D86; letter-spacing:.5px; margin-top:2px;">tap any field to edit</div>
-    <div class="r-addr">${r.addr || ''}</div>
+    <div class="r-addr">${escapeHtml(r.addr || '')}</div>
     <div class="return-row">
       <label class="return-label">Return by</label>
       <select class="return-select" onchange="handleReturnPreset(this.value)">
@@ -2269,10 +2284,10 @@ function showParsedReceipt(isNew = true){
     </div>
     ${r.returnBy ? `
       <div class="return-custom-row">
-        <input type="date" class="return-input" value="${r.returnBy}" onchange="updateReceiptField('returnBy', this.value)">
+        <input type="date" class="return-input" value="${escapeHtml(r.returnBy)}" onchange="updateReceiptField('returnBy', this.value)">
       </div>
     ` : ''}
-    <input type="text" class="notes-input" placeholder="Add a note (e.g. business expense, gift)" value="${r.notes || ''}" oninput="updateReceiptField('notes', this.value)">
+    <input type="text" class="notes-input" placeholder="Add a note (e.g. business expense, gift)" value="${escapeHtml(r.notes || '')}" oninput="updateReceiptField('notes', this.value)">
     <label class="business-checkbox">
       <input type="checkbox" ${r.isBusiness ? 'checked' : ''} onchange="updateReceiptField('isBusiness', this.checked); renderLibrary();">
       ${icon('briefcase', 13)} Business expense
@@ -2280,9 +2295,9 @@ function showParsedReceipt(isNew = true){
     <div class="r-divider"></div>
     ${r.items.map((it, i) => `
       <div class="r-item-row">
-        <input class="r-item-name" value="${it.name}" oninput="updateItemField(${i}, 'name', this.value)">
+        <input class="r-item-name" value="${escapeHtml(it.name)}" oninput="updateItemField(${i}, 'name', this.value)">
         <span>$</span>
-        <input class="r-item-price" value="${it.price}" oninput="updateItemField(${i}, 'price', this.value)">
+        <input class="r-item-price" value="${escapeHtml(it.price)}" oninput="updateItemField(${i}, 'price', this.value)">
         <button class="r-item-del" onclick="removeItem(${i})" title="Remove item">${icon('x', 13)}</button>
       </div>
       <div class="r-item-cat-row">
@@ -2293,9 +2308,9 @@ function showParsedReceipt(isNew = true){
     `).join('')}
     <button class="add-item-btn" data-icon="plus" onclick="addItem()">Add item</button>
     <div class="r-divider"></div>
-    <div class="r-row"><span>Subtotal</span><span>$<input class="r-total-input" id="subtotalInput" value="${r.subtotal}" readonly title="Calculated automatically from items above"></span></div>
-    <div class="r-row"><span>Tax</span><span>$<input class="r-total-input" id="taxInput" value="${r.tax}" oninput="updateReceiptField('tax', this.value)"></span></div>
-    <div class="r-total"><span>Total</span><span>$<input class="r-total-input big" id="totalInput" value="${r.total}" readonly title="Calculated automatically"></span></div>
+    <div class="r-row"><span>Subtotal</span><span>$<input class="r-total-input" id="subtotalInput" value="${escapeHtml(r.subtotal)}" readonly title="Calculated automatically from items above"></span></div>
+    <div class="r-row"><span>Tax</span><span>$<input class="r-total-input" id="taxInput" value="${escapeHtml(r.tax)}" oninput="updateReceiptField('tax', this.value)"></span></div>
+    <div class="r-total"><span>Total</span><span>$<input class="r-total-input big" id="totalInput" value="${escapeHtml(r.total)}" readonly title="Calculated automatically"></span></div>
     <div class="stamp-box" data-icon="check">SAVED</div>
     <div class="r-foot">SCANNED VIA STUB OCR</div>
     ${r.photo ? `
