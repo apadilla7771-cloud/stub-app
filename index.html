@@ -113,12 +113,31 @@
   }
   .business-filter-btn.active{ background:var(--verify); color:#fff; border-color:var(--verify); }
 
+  .list-label-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px 8px; flex-shrink:0; background:var(--bg-recessed);
+  }
   .list-label{
     font-size:10.5px; text-transform:uppercase; letter-spacing:1.3px;
-    color:#6B6558; padding:16px 22px 8px; font-weight:700; flex-shrink:0;
-    background:var(--bg-recessed);
+    color:#6B6558; font-weight:700;
+  }
+  .edit-toggle-btn{
+    background:none; border:none; color:var(--verify); font-size:12px; font-weight:700;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer; padding:2px 4px;
   }
   .list{ flex:1; overflow-y:auto; padding:0 22px 16px; background:var(--bg-recessed); }
+  .selection-bar{
+    flex-shrink:0; padding:10px 22px calc(env(safe-area-inset-bottom,0px) + 10px);
+    display:flex; gap:8px; background:var(--bg-recessed);
+  }
+  .selection-bar-btn{
+    flex:1; border:none; border-radius:12px; padding:13px; font-size:13.5px; font-weight:600;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .selection-bar-btn.secondary{ background:transparent; color:var(--ink); border:1.5px solid var(--line-strong); }
+  .selection-bar-btn.delete{ background:var(--stamp); color:#fff; }
+  .selection-bar-btn.delete:disabled{ opacity:.45; cursor:default; }
+  .rcpt-checkbox{ width:20px; height:20px; flex-shrink:0; accent-color:var(--verify); }
 
   .empty-state{
     padding:40px 30px; text-align:center; color:#6B6558; font-size:13.5px; line-height:1.7;
@@ -563,10 +582,20 @@
         </div>
         <button class="business-filter-btn" id="businessFilterBtn" data-icon="briefcase" onclick="toggleBusinessFilter()">Business expenses only</button>
       </div>
-      <div class="list-label">My receipts</div>
+      <div class="list-label-row">
+        <div class="list-label">My receipts</div>
+        <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleSelectionMode()">Edit</button>
+      </div>
       <div class="list" id="libraryList"></div>
-      <div class="fab-group">
+      <div class="fab-group" id="fabGroup">
         <button class="fab" data-icon="plus" onclick="openAddReceiptSheet()">Add a receipt</button>
+      </div>
+      <div class="selection-bar" id="selectionBar" style="display:none;">
+        <button class="selection-bar-btn secondary" onclick="toggleSelectAll()" id="selectAllBtn">Select all</button>
+        <button class="selection-bar-btn delete" onclick="deleteSelectedReceipts()" id="deleteSelectedBtn" disabled>
+          <span data-icon="trash" data-icon-size="14" data-icon-only="true"></span>
+          <span id="deleteSelectedCount">Delete (0)</span>
+        </button>
       </div>
     </div>
 
@@ -1068,6 +1097,67 @@ function handleReturnPreset(value){
 let activeReceipt = null; // the receipt currently being viewed/scanned (not yet necessarily saved)
 let businessOnlyFilter = false; // session-only view toggle, not persisted
 
+// ---------- multi-select delete ----------
+let selectionMode = false;
+let selectedReceiptIds = new Set();
+
+function toggleSelectionMode(){
+  selectionMode = !selectionMode;
+  selectedReceiptIds = new Set();
+  document.getElementById('editToggleBtn').textContent = selectionMode ? 'Cancel' : 'Edit';
+  document.getElementById('fabGroup').style.display = selectionMode ? 'none' : 'flex';
+  document.getElementById('selectionBar').style.display = selectionMode ? 'flex' : 'none';
+  updateSelectionBarState();
+  renderLibrary();
+}
+
+function toggleReceiptSelection(id){
+  if(selectedReceiptIds.has(id)) selectedReceiptIds.delete(id);
+  else selectedReceiptIds.add(id);
+  updateSelectionBarState();
+  renderLibrary();
+}
+
+function updateSelectionBarState(){
+  const count = selectedReceiptIds.size;
+  const deleteBtn = document.getElementById('deleteSelectedBtn');
+  const countLabel = document.getElementById('deleteSelectedCount');
+  if(!deleteBtn || !countLabel) return;
+  countLabel.textContent = `Delete (${count})`;
+  deleteBtn.disabled = count === 0;
+}
+
+// "Select all" only selects what's currently visible (respecting any
+// active search/filter), not every receipt you own — matches what the
+// person is actually looking at on screen.
+function toggleSelectAll(){
+  const visibleIds = getFilteredReceipts().map(r => r.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedReceiptIds.has(id));
+  if(allSelected){
+    selectedReceiptIds = new Set();
+  } else {
+    selectedReceiptIds = new Set(visibleIds);
+  }
+  updateSelectionBarState();
+  renderLibrary();
+}
+
+function deleteSelectedReceipts(){
+  const count = selectedReceiptIds.size;
+  if(count === 0) return;
+  if(!confirm(`Delete ${count} receipt${count === 1 ? '' : 's'}? This can't be undone.`)) return;
+
+  const remaining = loadReceipts().filter(r => !selectedReceiptIds.has(r.id));
+  saveReceipts(remaining);
+
+  selectionMode = false;
+  selectedReceiptIds = new Set();
+  document.getElementById('editToggleBtn').textContent = 'Edit';
+  document.getElementById('fabGroup').style.display = 'flex';
+  document.getElementById('selectionBar').style.display = 'none';
+  renderLibrary();
+}
+
 function toggleBusinessFilter(){
   businessOnlyFilter = !businessOnlyFilter;
   document.getElementById('businessFilterBtn').classList.toggle('active', businessOnlyFilter);
@@ -1106,9 +1196,7 @@ function updateStorageIndicator(){
   if(el) el.innerHTML = `${icon('hardDrive', 11)} ${getStorageUsageMB()} MB used`;
 }
 
-function renderLibrary(){
-  updateStorageIndicator();
-  const list = document.getElementById('libraryList');
+function getFilteredReceipts(){
   const query = document.getElementById('searchInput').value || '';
   const sortSelect = document.getElementById('sortSelect');
   const categorySelect = document.getElementById('categoryFilterSelect');
@@ -1132,6 +1220,15 @@ function renderLibrary(){
     if(sortValue === 'amount_low') return (parseFloat(a.total) || 0) - (parseFloat(b.total) || 0);
     return new Date(b.savedAt || 0) - new Date(a.savedAt || 0); // newest first, default
   });
+
+  return filtered;
+}
+
+function renderLibrary(){
+  updateStorageIndicator();
+  const list = document.getElementById('libraryList');
+  const receipts = loadReceipts();
+  const filtered = getFilteredReceipts();
 
   list.innerHTML = '';
 
@@ -1171,10 +1268,14 @@ function getReturnBadgeHTML(r){
   filtered.forEach(r => {
     const row = document.createElement('div');
     row.className = 'rcpt-row';
-    row.onclick = () => { activeReceipt = r; showParsedReceipt(false); };
+    const isSelected = selectedReceiptIds.has(r.id);
+    row.onclick = selectionMode
+      ? () => toggleReceiptSelection(r.id)
+      : () => { activeReceipt = r; showParsedReceipt(false); };
     const initials = (r.brand || '?').trim().slice(0, 2).toUpperCase();
     row.innerHTML = `
       <div class="rcpt-left">
+        ${selectionMode ? `<input type="checkbox" class="rcpt-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleReceiptSelection('${r.id}');">` : ''}
         <div class="rcpt-icon">${escapeHtml(initials)}</div>
         <div>
           <div class="rcpt-name">${escapeHtml(r.brand || 'Receipt')}</div>
@@ -1185,7 +1286,7 @@ function getReturnBadgeHTML(r){
       </div>
       <div class="rcpt-right">
         <div class="rcpt-amt">${r.total ? '$'+escapeHtml(r.total) : ''}</div>
-        <div class="rcpt-chevron">›</div>
+        ${selectionMode ? '' : '<div class="rcpt-chevron">›</div>'}
       </div>
     `;
     card.appendChild(row);
